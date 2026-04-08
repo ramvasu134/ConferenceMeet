@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air - Teacher Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0d0d2b 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .logo-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo-text {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00b4d8, #ff6b35, #e63946);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00b4d8, #ff6b35);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 10px;
+            box-shadow: 0 0 30px rgba(0, 180, 216, 0.4);
+        }
+        .home-btn {
+            display: inline-block;
+            padding: 8px 24px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            margin-bottom: 20px;
+            transition: 0.3s;
+        }
+        .home-btn:hover { background: rgba(255,255,255,0.2); }
+        .login-card {
+            background: rgba(20, 20, 50, 0.8);
+            border: 1px solid rgba(100, 100, 200, 0.3);
+            border-radius: 16px;
+            padding: 40px;
+            width: 440px;
+            max-width: 90%;
+            box-shadow: 0 0 40px rgba(100, 100, 200, 0.15);
+        }
+        .login-title {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .login-title .icon { font-size: 32px; }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #ccc;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: 0.3s;
+        }
+        .form-group input:focus {
+            border-color: rgba(100, 149, 237, 0.6);
+            box-shadow: 0 0 10px rgba(100, 149, 237, 0.2);
+        }
+        .password-wrapper {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #aaa;
+            font-size: 18px;
+            background: none;
+            border: none;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #4a90d9;
+        }
+        .checkbox-group label { color: #ccc; cursor: pointer; }
+        .checkbox-group a { color: #4a90d9; }
+        .btn-signin {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, rgba(100, 149, 237, 0.6), rgba(100, 149, 237, 0.3));
+            border: 1px solid rgba(100, 149, 237, 0.4);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-signin:hover {
+            background: linear-gradient(135deg, rgba(100, 149, 237, 0.8), rgba(100, 149, 237, 0.5));
+            box-shadow: 0 0 20px rgba(100, 149, 237, 0.3);
+        }
+        .error-msg {
+            background: rgba(230, 57, 70, 0.2);
+            border: 1px solid rgba(230, 57, 70, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+        .success-msg {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            color: #2ecc71;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-section">
+        <div class="logo-icon">🎓</div>
+        <div class="logo-text">Air</div>
+    </div>
+
+    <a href="#" class="home-btn">🏠 Home</a>
+
+    <div class="login-card">
+        <div class="login-title">
+            <span class="icon">🎓</span>
+            <span>Teacher Login</span>
+        </div>
+
+        <div th:if="${param.error}" class="error-msg">
+            Invalid username or password. Please try again.
+        </div>
+        <div th:if="${param.logout}" class="success-msg">
+            You have been logged out successfully.
+        </div>
+
+        <form th:action="@{/login}" method="post">
+            <div class="form-group">
+                <label>👤 Username</label>
+                <input type="text" name="username" placeholder="Enter your username" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label>🔐 Password</label>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    <button type="button" class="password-toggle" onclick="togglePassword()">👁</button>
+                </div>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="remember" name="remember-me" checked>
+                <label for="remember">Remember Me</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="terms" required checked>
+                <label for="terms">Please read our <a href="#">Terms and Conditions</a>. You must accept them to sign in.</label>
+            </div>
+
+            <button type="submit" class="btn-signin">
+                ➡️ Sign In
+            </button>
+        </form>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const pwd = document.getElementById('password');
+            pwd.type = pwd.type === 'password' ? 'text' : 'password';
+        }
+    </script>
+</body>
+</html>
+

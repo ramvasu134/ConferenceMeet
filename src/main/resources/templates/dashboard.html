@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air - Teacher Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Hidden fields for server data -->
+    <input type="hidden" id="teacherName" th:value="${teacher.name}">
+    <input type="hidden" id="teacherUsername" th:value="${teacher.username}">
+    <input type="hidden" id="csrfToken" th:value="${_csrf.token}">
+    <input type="hidden" id="csrfHeader" th:value="${_csrf.headerName}">
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="teacher-name" th:text="${teacher.name}">VK2</div>
+        <div class="meeting-timer" id="meetingTimer">
+            <span class="rec-dot" id="recDot"></span>
+            <span id="timerDisplay">00:00:00</span>
+            <button class="timer-btn" id="btnScreenShare" title="Screen Share">🖥️</button>
+            <button class="timer-btn" id="btnSpeaker" title="Toggle Speaker">🔊</button>
+            <button class="timer-btn" id="btnMic" title="Toggle Mic">🎤</button>
+            <button class="timer-btn" id="btnPauseResume" title="Pause / Resume">⏸️</button>
+            <button class="timer-btn stop-btn" id="btnStopMeeting" title="Stop Meeting">⏹️</button>
+        </div>
+        <div class="top-right">
+            <div class="participant-count">
+                <span id="meetingCount">0</span> M / <span id="onlineCount">0</span> O
+            </div>
+            <button class="btn-start-meeting" id="btnStartMeeting">Start Meeting</button>
+            <button class="btn-settings" id="btnSettings">⚙️</button>
+        </div>
+    </div>
+
+    <!-- Teacher VAD Speaking Indicator (shows when teacher is speaking) -->
+    <div class="teacher-speaking-indicator" id="teacherSpeakingIndicator">
+        <span class="pulse-dot"></span>
+        <span class="tsi-label">🗣️ You are speaking — broadcasting live</span>
+        <div class="vad-level" id="vadLevelBar"><div class="vad-level-fill" id="vadLevelFill"></div></div>
+    </div>
+
+    <!-- Speaking Students Indicator (shows who is talking) -->
+    <div class="speaking-strip" id="speakingStrip" style="display:none">
+        <span class="speaking-label">🎤 Speaking:</span>
+        <div class="speaking-avatars" id="speakingAvatars"></div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="meeting-controls">🎤 Meeting Controls</button>
+        <button class="tab-btn" data-tab="chat">💬 Chat</button>
+        <button class="tab-btn" data-tab="students-list">👥 Students List</button>
+        <button class="tab-btn" data-tab="create-student">➕ Create Student</button>
+        <button class="tab-btn" data-tab="recordings">🔴 Recordings</button>
+    </div>
+
+    <!-- ==================== TAB CONTENT ==================== -->
+    <div class="tab-content">
+
+        <!-- ===== Meeting Controls Tab ===== -->
+        <div class="tab-pane active" id="meeting-controls">
+            <div class="meeting-area">
+                <div class="meeting-banner" id="meetingBanner">
+                    <span class="banner-idle">Press <strong>Start Meeting</strong> to begin a session</span>
+                </div>
+                <div class="meeting-body" id="meetingBody">
+                    <div class="no-students" id="noStudentsMsg">
+                        <p><strong>No students in meeting yet</strong></p>
+                    </div>
+                    <div class="students-grid" id="meetingStudentsGrid"></div>
+
+                    <!-- ===== INCOMING DOUBTS PANEL ===== -->
+                    <div class="doubts-panel" id="doubtsPanel">
+                        <div class="doubts-panel-header">
+                            <h4>❓ Student Doubts <span class="doubt-count" id="doubtCount">(0)</span></h4>
+                            <button class="btn-refresh" id="btnRefreshDoubtsPanel" style="padding:4px 12px;font-size:12px">Refresh</button>
+                        </div>
+                        <div class="doubts-panel-list" id="doubtsPanelList">
+                            <div class="empty-state" style="padding:20px"><p>No doubts yet</p></div>
+                        </div>
+                    </div>
+
+                    <div class="meeting-logo">
+                        <div class="air-logo-wrap">
+                            <span class="air-logo-icon">🎓</span>
+                            <span class="air-logo-text">AiR</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Audio visualiser bar (teacher broadcast) -->
+                <div class="audio-visualiser" id="audioVisualiser">
+                    <canvas id="audioCanvas" width="800" height="60"></canvas>
+                </div>
+                <div class="meeting-controls-bar">
+                    <button class="control-btn speaker-toggle" id="btnSpeakerToggle" title="Toggle Speaker">
+                        <span class="ctrl-icon">🔊</span>
+                    </button>
+                    <button class="mic-btn" id="btnMicToggle" title="Broadcast / Record">
+                        <span class="ctrl-icon">🎤</span>
+                    </button>
+                    <button class="control-btn send-btn" id="btnSendAudio" title="Stop &amp; send broadcast chunk">
+                        <span class="ctrl-icon">📤</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Chat Tab ===== -->
+        <div class="tab-pane" id="chat">
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="no-chat">No messages yet. Start a meeting and begin chatting!</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" placeholder="Type a message…" autocomplete="off">
+                    <button class="btn-send-chat" id="btnSendChat">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Students List Tab ===== -->
+        <div class="tab-pane" id="students-list">
+            <div class="students-toolbar">
+                <button class="btn-refresh" id="btnRefreshStudents">Refresh</button>
+                <input type="text" id="searchStudents" placeholder="Search students…" autocomplete="off">
+            </div>
+            <div class="students-container" id="studentsList">
+                <div class="loading-spinner">Loading students…</div>
+            </div>
+        </div>
+
+        <!-- ===== Create Student Tab ===== -->
+        <div class="tab-pane" id="create-student">
+            <div class="create-student-form">
+                <div class="form-group">
+                    <label class="form-label">Student Name</label>
+                    <input type="text" id="studentName" placeholder="Enter student name" class="form-input">
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="studentUsername" placeholder="Enter student username" class="form-input">
+                    </div>
+                    <div class="form-group half">
+                        <label class="form-label">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="studentPassword" placeholder="Enter student password" class="form-input">
+                            <button type="button" class="pwd-toggle" id="btnToggleStudentPwd">👁</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="option-card" id="optDeviceLock">
+                    <div class="option-header">
+                        <input type="checkbox" id="deviceLock">
+                        <span>🔒 <strong>Enable Device Lock</strong></span>
+                    </div>
+                    <p class="option-desc">When enabled, student can only login from the first device they use after account creation</p>
+                </div>
+                <div class="option-card active" id="optShowRec">
+                    <div class="option-header">
+                        <input type="checkbox" id="showRecordings" checked>
+                        <span>🎤 <strong>Show Recordings to Student</strong></span>
+                    </div>
+                    <p class="option-desc">When enabled, student can view their recordings. When disabled, recordings are still created but only visible to teacher.</p>
+                </div>
+                <button class="btn-create-student" id="btnCreateStudent">Create Student</button>
+            </div>
+        </div>
+
+        <!-- ===== Recordings Tab ===== -->
+        <div class="tab-pane" id="recordings">
+            <div class="recordings-container">
+                <div class="recordings-toolbar">
+                    <h3>📼 Meeting Recordings</h3>
+                    <button class="btn-refresh" id="btnRefreshRecordings">Refresh</button>
+                </div>
+                <div class="recordings-list" id="recordingsList">
+                    <div class="loading-spinner">Loading recordings…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SETTINGS SIDEBAR ==================== -->
+    <div class="settings-overlay" id="settingsOverlay"></div>
+    <div class="settings-sidebar" id="settingsSidebar">
+        <div class="settings-item" id="sChangePassword">🔑 Change Password</div>
+        <div class="settings-item" id="sSchedule">📅 Schedule</div>
+        <div class="settings-item" id="sThemes">🎨 Themes</div>
+        <div class="settings-item" id="sSpeakDetection">🎤 Speak Detection Type</div>
+        <div class="settings-item" id="sZoomStudents">🔍 Zoom Students</div>
+        <div class="settings-item toggle-item">
+            <span>🔴 Full Meeting Recording</span>
+            <label class="switch">
+                <input type="checkbox" id="fullRecordingToggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-item logout-item" id="sLogout">🚪 Logout</div>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Change Password Modal -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-card">
+            <h3>🔑 Change Password</h3>
+            <div class="form-group"><label class="form-label">Current Password</label>
+                <input type="password" id="oldPassword" class="form-input" placeholder="Enter current password"></div>
+            <div class="form-group"><label class="form-label">New Password</label>
+                <input type="password" id="newPassword" class="form-input" placeholder="Enter new password"></div>
+            <div class="form-group"><label class="form-label">Confirm New Password</label>
+                <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm new password"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" data-close="passwordModal">Cancel</button>
+                <button class="btn-confirm" id="btnChangePassword">Change Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div class="modal-overlay" id="editStudentModal">
+        <div class="modal-card">
+            <h3>✏️ Edit Student</h3>
+            <input type="hidden" id="editStudentId">
+            <div class="form-group"><label class="form-label">Student Name</label>
+                <input type="text" id="editStudentName" class="form-input" placeholder="Student name"></div>
+            <div class="form-group"><label class="form-label">New Password (leave empty to keep current)</label>
+                <input type="password" id="editStudentPassword" class="form-input" placeholder="New password"></div>
+            <div class="option-card"><div class="option-header">
+                <input type="checkbox" id="editDeviceLock"><span>🔒 <strong>Enable Device Lock</strong></span>
+            </div></div>
+            <div class="option-card"><div class="option-header">
+                <input type="checkbox" id="editShowRecordings"><span>🎤 <strong>Show Recordings to Student</strong></span>
+            </div></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" data-close="editStudentModal">Cancel</button>
+                <button class="btn-confirm" id="btnSaveStudent">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div class="modal-overlay" id="scheduleModal">
+        <div class="modal-card wide">
+            <h3>📅 Schedule</h3>
+            <div class="form-group"><label class="form-label">Meeting Title</label>
+                <input type="text" id="schedTitle" class="form-input" placeholder="E.g. Maths Class"></div>
+            <div class="form-row">
+                <div class="form-group half"><label class="form-label">Date</label>
+                    <input type="date" id="schedDate" class="form-input"></div>
+                <div class="form-group half"><label class="form-label">Time</label>
+                    <input type="time" id="schedTime" class="form-input"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Duration (minutes)</label>
+                <input type="number" id="schedDuration" class="form-input" value="60"></div>
+            <div id="scheduleList" class="schedule-list"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" data-close="scheduleModal">Close</button>
+                <button class="btn-confirm" id="btnAddSchedule">Add to Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Picker Modal -->
+    <div class="modal-overlay" id="themeModal">
+        <div class="modal-card">
+            <h3>🎨 Choose Theme</h3>
+            <div class="theme-grid">
+                <div class="theme-swatch selected" data-theme="dark"><div class="swatch-preview dark-preview"></div><span>Dark</span></div>
+                <div class="theme-swatch" data-theme="midnight"><div class="swatch-preview midnight-preview"></div><span>Midnight</span></div>
+                <div class="theme-swatch" data-theme="ocean"><div class="swatch-preview ocean-preview"></div><span>Ocean</span></div>
+                <div class="theme-swatch" data-theme="forest"><div class="swatch-preview forest-preview"></div><span>Forest</span></div>
+            </div>
+            <div class="modal-actions"><button class="btn-cancel" data-close="themeModal">Close</button></div>
+        </div>
+    </div>
+
+    <!-- Speak Detection Type Modal -->
+    <div class="modal-overlay" id="speakDetectionModal">
+        <div class="modal-card">
+            <h3>🎤 Speak Detection Type</h3>
+            <div class="radio-group">
+                <label class="radio-card"><input type="radio" name="speakType" value="auto" checked>
+                    <div><strong>Auto</strong><p>Automatically detect when someone is speaking</p></div></label>
+                <label class="radio-card"><input type="radio" name="speakType" value="push">
+                    <div><strong>Push to Talk</strong><p>Student must hold mic button to speak</p></div></label>
+                <label class="radio-card"><input type="radio" name="speakType" value="continuous">
+                    <div><strong>Continuous</strong><p>Microphone stays open once activated</p></div></label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" data-close="speakDetectionModal">Cancel</button>
+                <button class="btn-confirm" id="btnSaveSpeakDetection">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zoom Students Modal -->
+    <div class="modal-overlay" id="zoomModal">
+        <div class="modal-card">
+            <h3>🔍 Zoom Students</h3>
+            <div class="form-group">
+                <label class="form-label">Student Card Size</label>
+                <input type="range" id="zoomRange" min="80" max="200" value="100" class="zoom-slider">
+                <div class="zoom-value"><span id="zoomValue">100</span>%</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" data-close="zoomModal">Close</button>
+                <button class="btn-confirm" id="btnApplyZoom">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Answer Doubt Modal -->
+    <div class="modal-overlay" id="answerDoubtModal">
+        <div class="modal-card wide">
+            <h3>💬 Answer Doubt</h3>
+            <input type="hidden" id="answerDoubtId">
+            <div class="form-group">
+                <label class="form-label">Student doubt:</label>
+                <audio id="answerDoubtAudio" class="audio-player" controls style="width:100%"></audio>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Text reply (optional)</label>
+                <input type="text" id="answerDoubtNote" class="form-input" placeholder="Type a note for the student…">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Voice reply (optional)</label>
+                <div style="display:flex;gap:10px;align-items:center">
+                    <button class="btn-confirm" id="btnRecordAnswer" style="flex:none">🎤 Record</button>
+                    <span id="answerRecStatus" style="color:#888;font-size:13px">Not recording</span>
+                </div>
+                <audio id="answerPreview" class="audio-player" controls style="width:100%;margin-top:8px;display:none"></audio>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" data-close="answerDoubtModal">Cancel</button>
+                <button class="btn-confirm" id="btnSubmitAnswer">Submit Answer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-card small">
+            <h3 id="confirmTitle">Confirm</h3>
+            <p id="confirmMsg"></p>
+            <div class="modal-actions">
+                <button class="btn-cancel" data-close="confirmModal">Cancel</button>
+                <button class="btn-confirm btn-danger" id="btnConfirmAction">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/js/audio-processor.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
+

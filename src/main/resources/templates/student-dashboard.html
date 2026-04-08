@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air - Student Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <input type="hidden" id="studentId"   th:value="${studentId}">
+    <input type="hidden" id="studentName" th:value="${studentName}">
+    <input type="hidden" id="teacherName" th:value="${teacherName}">
+
+    <!-- ===== TOP BAR ===== -->
+    <div class="top-bar">
+        <div class="teacher-name" th:text="${studentName}">Student</div>
+        <div class="meeting-timer" id="meetingTimer">
+            <span class="rec-dot" id="recDot"></span>
+            <span id="timerDisplay">00:00:00</span>
+            <span class="connection-badge" id="connBadge">Connecting…</span>
+        </div>
+        <div class="top-right">
+            <div class="participant-count" id="teacherTag">
+                Teacher: <strong th:text="${teacherName}">—</strong>
+            </div>
+            <button class="btn-settings" id="btnLogout" title="Logout">🚪</button>
+        </div>
+    </div>
+
+    <!-- ===== TAB NAV ===== -->
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="listen-tab">🔊 Listen</button>
+        <button class="tab-btn" data-tab="doubts-tab">❓ My Doubts</button>
+    </div>
+
+    <div class="tab-content">
+
+        <!-- ============ LISTEN TAB ============ -->
+        <div class="tab-pane active" id="listen-tab">
+            <div class="meeting-area">
+                <!-- Status banner -->
+                <div class="meeting-banner" id="listenBanner">
+                    <span class="banner-idle" id="bannerText">⏳ Waiting for teacher to start a meeting…</span>
+                </div>
+
+                <!-- Teacher broadcast visualiser -->
+                <div class="listen-body">
+                    <div class="broadcast-vis-wrap" id="broadcastVisWrap">
+                        <canvas id="broadcastCanvas" width="700" height="80"></canvas>
+                        <div class="broadcast-label" id="broadcastLabel">🔇 No broadcast</div>
+                    </div>
+
+                    <div class="meeting-logo">
+                        <div class="air-logo-wrap">
+                            <span class="air-logo-icon">🎓</span>
+                            <span class="air-logo-text">AiR</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student mic visualiser (when asking doubt) -->
+                <div class="student-speaking-indicator" id="speakingIndicator">
+                    <span class="pulse-dot"></span>
+                    <span>You are speaking — doubt is being recorded</span>
+                </div>
+                <div class="audio-visualiser" id="doubtVisualiser">
+                    <canvas id="doubtCanvas" width="700" height="50"></canvas>
+                </div>
+
+                <!-- Controls bar -->
+                <div class="meeting-controls-bar">
+                    <button class="control-btn speaker-toggle" id="btnSpeakerToggle" title="Mute/Unmute playback">
+                        <span class="ctrl-icon">🔊</span>
+                    </button>
+                    <button class="mic-btn" id="btnAskDoubt" title="Hold or click to ask a doubt">
+                        <span class="ctrl-icon">🎤</span>
+                    </button>
+                    <button class="control-btn send-btn" id="btnSendDoubt" title="Stop &amp; send doubt recording">
+                        <span class="ctrl-icon">📤</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ MY DOUBTS TAB ============ -->
+        <div class="tab-pane" id="doubts-tab">
+            <div class="recordings-container">
+                <div class="recordings-toolbar">
+                    <h3>❓ My Doubt Clips</h3>
+                    <button class="btn-refresh" id="btnRefreshDoubts">Refresh</button>
+                </div>
+                <div class="recordings-list" id="doubtsList">
+                    <div class="loading-spinner">Loading doubts…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/js/audio-processor.js"></script>
+    <script src="/js/student.js"></script>
+</body>
+</html>
+

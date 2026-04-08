@@ -1,0 +1,30 @@
+# ============================================================
+# .dockerignore — Keep Docker build context small and fast
+# ============================================================
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Build output (we rebuild inside Docker)
+target/
+
+# Local H2 data files
+data/
+
+# Git
+.git/
+.gitignore
+
+# Screens / docs
+screens/
+HELP.md
+README.md
+
+# OS files
+Thumbs.db
+.DS_Store
+

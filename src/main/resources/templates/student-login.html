@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air - Student Login</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
+        .logo-section{text-align:center;margin-bottom:20px}
+        .logo-icon{font-size:64px;display:block;margin-bottom:8px}
+        .logo-text{font-size:44px;font-weight:bold;background:linear-gradient(135deg,#00b4d8,#ff6b35,#e63946);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .login-card{background:rgba(20,20,50,0.8);border:1px solid rgba(100,100,200,0.3);border-radius:16px;padding:40px;width:440px;max-width:92%}
+        .login-title{text-align:center;font-size:26px;margin-bottom:28px}
+        .error-box{background:rgba(230,57,70,0.15);border:1px solid rgba(230,57,70,0.4);border-radius:8px;padding:12px;text-align:center;color:#ff6b6b;margin-bottom:18px;display:none}
+        .btn-signin{width:100%;padding:14px;background:linear-gradient(135deg,rgba(100,149,237,0.6),rgba(100,149,237,0.3));border:1px solid rgba(100,149,237,0.4);border-radius:10px;color:#fff;font-size:18px;cursor:pointer;transition:.3s;display:flex;align-items:center;justify-content:center;gap:10px}
+        .btn-signin:hover{background:linear-gradient(135deg,rgba(100,149,237,0.8),rgba(100,149,237,0.5));box-shadow:0 0 20px rgba(100,149,237,0.3)}
+        .link-row{text-align:center;margin-top:18px}
+        .link-row a{color:#6c63ff;text-decoration:none}
+    </style>
+</head>
+<body>
+    <div class="logo-section">
+        <span class="logo-icon">🎓</span>
+        <span class="logo-text">Air</span>
+    </div>
+
+    <div class="login-card">
+        <div class="login-title">📖 Student Login</div>
+        <div class="error-box" id="errorBox"></div>
+
+        <div class="form-group">
+            <label class="form-label">👤 Username</label>
+            <input type="text" id="username" class="form-input" placeholder="Enter your username" autofocus>
+        </div>
+        <div class="form-group">
+            <label class="form-label">🔐 Password</label>
+            <input type="password" id="password" class="form-input" placeholder="Enter your password">
+        </div>
+
+        <button class="btn-signin" id="btnLogin">➡️ Sign In</button>
+
+        <div class="link-row">
+            <a href="/login">Teacher Login →</a>
+        </div>
+    </div>
+
+    <script>
+        const btnLogin = document.getElementById('btnLogin');
+        const errorBox = document.getElementById('errorBox');
+
+        btnLogin.onclick = doLogin;
+        document.getElementById('password').onkeypress = e => { if(e.key==='Enter') doLogin(); };
+
+        async function doLogin(){
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            if(!username||!password){ showErr('Please enter username and password'); return; }
+
+            btnLogin.disabled = true; btnLogin.textContent = 'Signing in…';
+            try {
+                const res = await fetch('/api/student/login', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await res.json();
+                if(res.ok){
+                    window.location.href = '/student/dashboard';
+                } else {
+                    showErr(data.error || 'Login failed');
+                }
+            } catch(e){ showErr('Network error'); }
+            btnLogin.disabled = false; btnLogin.textContent = '➡️ Sign In';
+        }
+
+        function showErr(msg){
+            errorBox.textContent = msg;
+            errorBox.style.display = 'block';
+            setTimeout(()=> errorBox.style.display='none', 4000);
+        }
+    </script>
+</body>
+</html>
+

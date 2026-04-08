@@ -1,0 +1,27 @@
+# ============================================================
+# Render.com Blueprint — One-click deploy configuration
+# Docs: https://render.com/docs/blueprint-spec
+# ============================================================
+services:
+  - type: web
+    name: air-meetings-app
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free  # Change to "starter" ($7/mo) for persistent disk
+
+    # Render health check endpoint (must return 200)
+    healthCheckPath: /login
+
+    # Environment variables for the Render profile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+      - key: JAVA_TOOL_OPTIONS
+        value: -Xmx512m
+
+    # ── Persistent Disk (uncomment for paid plan to keep H2 data across deploys) ──
+    # disk:
+    #   name: meetings-data
+    #   mountPath: /opt/data
+    #   sizeGB: 1
+
