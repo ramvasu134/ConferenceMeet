@@ -59,11 +59,20 @@ function hdrs(json){
     if (csrfHeader && csrfToken) h[csrfHeader] = csrfToken;
     return h;
 }
+async function safeJson(r) {
+    const text = await r.text();
+    try { return JSON.parse(text); }
+    catch(e) {
+        // Non-JSON response (e.g. session expired → login HTML page, or server error page)
+        if (!r.ok) throw new Error(`Server error (${r.status})`);
+        throw new Error('Unexpected server response');
+    }
+}
 const api = {
-    get:  url => fetch(url).then(r => r.json()),
-    post: (url, body) => fetch(url, {method:'POST', headers:hdrs(!!body), body: body ? JSON.stringify(body) : undefined}).then(r => r.json()),
-    put:  (url, body) => fetch(url, {method:'PUT',  headers:hdrs(true),  body: JSON.stringify(body)}).then(r => r.json()),
-    del:  url => fetch(url, {method:'DELETE', headers:hdrs(false)}).then(r => r.json()),
+    get:  url => fetch(url, {credentials:'same-origin'}).then(safeJson),
+    post: (url, body) => fetch(url, {method:'POST', headers:hdrs(!!body), body: body ? JSON.stringify(body) : undefined, credentials:'same-origin'}).then(safeJson),
+    put:  (url, body) => fetch(url, {method:'PUT',  headers:hdrs(true),  body: JSON.stringify(body), credentials:'same-origin'}).then(safeJson),
+    del:  url => fetch(url, {method:'DELETE', headers:hdrs(false), credentials:'same-origin'}).then(safeJson),
 };
 
 // ===== WIRE ALL EVENTS =====
@@ -151,7 +160,7 @@ function switchTab(tab){
 
 // ================= STUDENTS LIST =================
 function loadStudents(){
-    api.get('/api/students').then(students => { renderStudents(students); updateOnlineCount(students); });
+    api.get('/api/students').then(students => { renderStudents(students); updateOnlineCount(students); }).catch(e => { console.error('Load students error:', e); });
 }
 function searchStudentsList(){
     const q = $('searchStudents').value;
@@ -172,7 +181,7 @@ function renderStudents(list){
           <div class="dates">Created: ${s.createdAt} | Last seen: ${s.lastSeen}</div>
         </div>
         <div class="student-actions">
-          <button class="action-btn btn-whatsapp" onclick="contactWhatsApp('${escHtml(s.name)}')">💬</button>
+          <button class="action-btn btn-whatsapp" onclick="contactWhatsApp('${escHtml(s.name)}','${escHtml(s.username)}')">💬</button>
           <button class="action-btn btn-edit" onclick="openEditStudent(${s.id},'${escHtml(s.name)}',${s.deviceLock},${s.showRecordings})">✏️ Edit</button>
           <button class="action-btn btn-block ${s.blocked?'blocked':''}" onclick="doToggleBlock(${s.id})">${s.blocked?'🔓 Unblock':'🚫 Block'}</button>
           <button class="action-btn btn-mute ${s.muted?'muted':''}" onclick="doToggleMute(${s.id})">${s.muted?'🔊 Unmute':'🔇 Mute'}</button>
@@ -182,13 +191,24 @@ function renderStudents(list){
 }
 function updateOnlineCount(students){ $('onlineCount').textContent = students.filter(s=>s.online).length; }
 
-window.contactWhatsApp = name => toast(`WhatsApp sharing for ${name} — integration ready`, 'success');
+window.contactWhatsApp = (name, username) => {
+    const loginUrl = window.location.origin + '/student/login';
+    const msg = `📚 *Air Meetings — Student Login Details*\n\n`
+              + `👤 Name: ${name}\n`
+              + `🔑 Username: ${username}\n`
+              + `🔒 Password: (set by teacher)\n\n`
+              + `🌐 Login here: ${loginUrl}\n\n`
+              + `— Sent from Air MeetingsApp`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+    toast(`WhatsApp opened for ${name}`, 'success');
+};
 window.openEditStudent = (id,name,dl,sr) => {
     $('editStudentId').value=id; $('editStudentName').value=name; $('editStudentPassword').value='';
     $('editDeviceLock').checked=dl; $('editShowRecordings').checked=sr; openModal('editStudentModal');
 };
-window.doToggleBlock = id => api.post(`/api/students/${id}/block`).then(()=>{ loadStudents(); toast('Block toggled','success'); });
-window.doToggleMute  = id => api.post(`/api/students/${id}/mute`).then(()=>{ loadStudents(); toast('Mute toggled','success'); });
+window.doToggleBlock = id => api.post(`/api/students/${id}/block`).then(()=>{ loadStudents(); toast('Block toggled','success'); }).catch(e => toast('Failed: '+e.message,'error'));
+window.doToggleMute  = id => api.post(`/api/students/${id}/mute`).then(()=>{ loadStudents(); toast('Mute toggled','success'); }).catch(e => toast('Failed: '+e.message,'error'));
 window.doDeleteStudent = (id,name) => showConfirm('Delete Student',`Delete "${name}"? Cannot undo.`,()=>{
     api.del(`/api/students/${id}`).then(()=>{ loadStudents(); toast(`"${name}" deleted`,'success'); });
 });
@@ -200,7 +220,7 @@ function updateStudent(){
     api.put(`/api/students/${id}`,body).then(d=>{
         if(d.error){ toast(d.error,'error'); return; }
         toast('Updated','success'); closeModal('editStudentModal'); loadStudents();
-    });
+    }).catch(e => { console.error('Update student error:', e); toast('Failed to update: ' + e.message, 'error'); });
 }
 
 // ================= CREATE STUDENT =================
@@ -208,6 +228,8 @@ function createStudent(){
     const body={name:$('studentName').value.trim(), username:$('studentUsername').value.trim(),
                 password:$('studentPassword').value, deviceLock:$('deviceLock').checked, showRecordings:$('showRecordings').checked};
     if(!body.name||!body.username||!body.password){ toast('All fields required','error'); return; }
+    $('btnCreateStudent').disabled = true;
+    $('btnCreateStudent').textContent = 'Creating…';
     api.post('/api/students',body).then(d=>{
         if(d.error){ toast(d.error,'error'); return; }
         toast(`"${body.name}" created!`,'success');
@@ -215,6 +237,12 @@ function createStudent(){
         $('deviceLock').checked=false; $('showRecordings').checked=true;
         $('optDeviceLock').classList.remove('active'); $('optShowRec').classList.add('active');
         switchTab('students-list');
+    }).catch(e => {
+        console.error('Create student error:', e);
+        toast('Failed to create student: ' + e.message, 'error');
+    }).finally(() => {
+        $('btnCreateStudent').disabled = false;
+        $('btnCreateStudent').textContent = 'Create Student';
     });
 }
 
