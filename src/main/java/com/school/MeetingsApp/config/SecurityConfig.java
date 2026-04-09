@@ -1,6 +1,5 @@
 package com.school.MeetingsApp.config;
 
-import com.school.MeetingsApp.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -14,6 +13,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private final RoleBasedSuccessHandler successHandler;
+
+    public SecurityConfig(RoleBasedSuccessHandler successHandler) {
+        this.successHandler = successHandler;
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -33,14 +38,16 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                .requestMatchers("/login", "/h2-console/**").permitAll()
-                .requestMatchers("/student/**", "/api/student/**").permitAll()
+                .requestMatchers("/login", "/student/login", "/h2-console/**").permitAll()
+                .requestMatchers("/api/student/**").permitAll()
+                .requestMatchers("/student/dashboard").authenticated()
+                .requestMatchers("/api/managers/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/dashboard", true)
+                .successHandler(successHandler)
                 .failureUrl("/login?error=true")
                 .permitAll()
             )
@@ -51,6 +58,18 @@ public class SecurityConfig {
             )
             .headers(headers -> headers
                 .frameOptions(frame -> frame.sameOrigin())
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)   // 1 year
+                    .preload(true)
+                )
+                .referrerPolicy(referrer -> referrer
+                    .policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                )
+                .contentTypeOptions(contentType -> {})   // X-Content-Type-Options: nosniff
+                .permissionsPolicy(permissions -> permissions
+                    .policy("microphone=(self), camera=(), geolocation=()")
+                )
             );
 
         return http.build();

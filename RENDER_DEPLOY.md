@@ -1,4 +1,4 @@
-# Air - MeetingsApp | Render.com Deployment Guide
+# mtng - MeetingsApp | Render.com Deployment Guide
 
 ## Quick Deploy to Render.com
 
@@ -18,7 +18,7 @@
 5. Configure:
    | Setting              | Value                              |
    |---------------------|------------------------------------|
-   | **Name**            | `air-meetings-app`                |
+   | **Name**            | `mtng-app`                        |
    | **Runtime**         | `Docker`                          |
    | **Dockerfile Path** | `./Dockerfile`                    |
    | **Plan**            | Free (or Starter for persistence) |

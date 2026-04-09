@@ -28,12 +28,25 @@ public class Teacher {
 
     private String speakDetectionType = "auto";
 
+    private String role = "MANAGER"; // ADMIN or MANAGER
+
+    private String avatar = "avatar-1"; // default avatar
+
     public Teacher() {}
 
     public Teacher(String name, String username, String password) {
         this.name = name;
         this.username = username;
         this.password = password;
+        this.role = "MANAGER";
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public Teacher(String name, String username, String password, String role) {
+        this.name = name;
+        this.username = username;
+        this.password = password;
+        this.role = role;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -53,5 +66,8 @@ public class Teacher {
     public void setTheme(String theme) { this.theme = theme; }
     public String getSpeakDetectionType() { return speakDetectionType; }
     public void setSpeakDetectionType(String speakDetectionType) { this.speakDetectionType = speakDetectionType; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
 }
-

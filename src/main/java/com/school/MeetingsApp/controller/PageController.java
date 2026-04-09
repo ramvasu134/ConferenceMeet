@@ -25,6 +25,8 @@ public class PageController {
     public String dashboard(Authentication auth, Model model) {
         Teacher teacher = teacherService.getByUsername(auth.getName());
         model.addAttribute("teacher", teacher);
+        model.addAttribute("isAdmin", "ADMIN".equals(teacher.getRole()));
+        model.addAttribute("teacherAvatar", teacher.getAvatar() != null ? teacher.getAvatar() : "avatar-1");
         return "dashboard";
     }
 }

@@ -40,6 +40,8 @@ public class Student {
 
     private LocalDateTime lastSeen;
 
+    private String avatar = "avatar-1"; // default avatar
+
     public Student() {}
 
     public Student(String name, String username, String password, Teacher teacher) {
@@ -76,5 +78,6 @@ public class Student {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getLastSeen() { return lastSeen; }
     public void setLastSeen(LocalDateTime lastSeen) { this.lastSeen = lastSeen; }
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
 }
-

@@ -1,5 +1,5 @@
 /* ============================================================
-   Air – Teacher Dashboard · Full Client-Side Controller
+   mtng – Teacher Dashboard · Full Client-Side Controller
    Uses AudioProcessor for noise-filtered broadcast & recording
    ============================================================ */
 
@@ -38,6 +38,64 @@ let autoSaveCounter = parseInt(localStorage.getItem('air_autoSaveCount') || '0',
 const csrfToken  = document.getElementById('csrfToken')?.value;
 const csrfHeader = document.getElementById('csrfHeader')?.value;
 const teacherName = document.getElementById('teacherName')?.value;
+const isAdmin = document.getElementById('isAdmin')?.value === 'true';
+const teacherRole = document.getElementById('teacherRole')?.value;
+let   teacherAvatar = document.getElementById('teacherAvatar')?.value || 'avatar-1';
+
+// ===== AVATAR SYSTEM =====
+const AVATARS = [
+    { id: 'avatar-1',  icon: '🦊', label: 'Fox',       bg: 'from-orange-500 to-red-500' },
+    { id: 'avatar-2',  icon: '🐺', label: 'Wolf',      bg: 'from-gray-500 to-blue-600' },
+    { id: 'avatar-3',  icon: '🦁', label: 'Lion',      bg: 'from-amber-500 to-yellow-600' },
+    { id: 'avatar-4',  icon: '🐱', label: 'Cat',       bg: 'from-pink-500 to-rose-500' },
+    { id: 'avatar-5',  icon: '🐼', label: 'Panda',     bg: 'from-gray-600 to-gray-800' },
+    { id: 'avatar-6',  icon: '🦉', label: 'Owl',       bg: 'from-amber-700 to-orange-900' },
+    { id: 'avatar-7',  icon: '🐸', label: 'Frog',      bg: 'from-green-500 to-emerald-600' },
+    { id: 'avatar-8',  icon: '🦋', label: 'Butterfly', bg: 'from-violet-500 to-purple-600' },
+    { id: 'avatar-9',  icon: '🐧', label: 'Penguin',   bg: 'from-sky-500 to-blue-600' },
+    { id: 'avatar-10', icon: '🦄', label: 'Unicorn',   bg: 'from-pink-400 to-purple-500' },
+    { id: 'avatar-11', icon: '🐲', label: 'Dragon',    bg: 'from-red-600 to-orange-500' },
+    { id: 'avatar-12', icon: '🦈', label: 'Shark',     bg: 'from-blue-700 to-cyan-600' },
+    { id: 'avatar-13', icon: '🦅', label: 'Eagle',     bg: 'from-yellow-700 to-amber-800' },
+    { id: 'avatar-14', icon: '🐬', label: 'Dolphin',   bg: 'from-cyan-500 to-teal-500' },
+    { id: 'avatar-15', icon: '🦚', label: 'Peacock',   bg: 'from-teal-500 to-emerald-600' },
+    { id: 'avatar-16', icon: '🐉', label: 'Serpent',   bg: 'from-indigo-500 to-purple-700' },
+];
+
+function getAvatarById(id) { return AVATARS.find(a => a.id === id) || AVATARS[0]; }
+
+/** Render an avatar badge. size = 'sm' | 'md' | 'lg' */
+function renderAvatar(avatarId, size = 'md') {
+    const av = getAvatarById(avatarId);
+    const sizes = { sm: 'w-8 h-8 text-base', md: 'w-10 h-10 text-xl', lg: 'w-14 h-14 text-3xl' };
+    const cls = sizes[size] || sizes.md;
+    return `<div class="rounded-full bg-gradient-to-br ${av.bg} ${cls} flex items-center justify-center shadow-lg ring-2 ring-white/10 flex-shrink-0" title="${av.label}"><span class="drop-shadow">${av.icon}</span></div>`;
+}
+
+/** Build avatar picker grid. targetInputId = hidden input to set value. size = 'sm'|'md' */
+function buildAvatarPicker(containerId, targetInputId, selectedId, size = 'md') {
+    const grid = $(containerId);
+    if (!grid) return;
+    selectedId = selectedId || 'avatar-1';
+    const sz = size === 'sm' ? 'w-9 h-9 text-lg' : 'w-12 h-12 text-2xl';
+    grid.innerHTML = AVATARS.map(av => `
+        <div class="avatar-option flex flex-col items-center gap-1 cursor-pointer p-1 rounded-xl border-2 transition-all hover:scale-110 ${av.id === selectedId ? 'border-indigo-500 bg-indigo-500/10 scale-105' : 'border-transparent hover:border-white/20'}"
+             data-avatar="${av.id}" data-target="${targetInputId}">
+            <div class="rounded-full bg-gradient-to-br ${av.bg} ${sz} flex items-center justify-center shadow-lg"><span class="drop-shadow">${av.icon}</span></div>
+        </div>`).join('');
+    // Wire click
+    grid.querySelectorAll('.avatar-option').forEach(opt => {
+        opt.onclick = () => {
+            grid.querySelectorAll('.avatar-option').forEach(o => { o.classList.remove('border-indigo-500','bg-indigo-500/10','scale-105'); o.classList.add('border-transparent'); });
+            opt.classList.add('border-indigo-500','bg-indigo-500/10','scale-105');
+            opt.classList.remove('border-transparent');
+            const target = $(opt.dataset.target);
+            if (target) target.value = opt.dataset.avatar;
+        };
+    });
+}
+
+let selectedTeacherAvatar = null; // temp state for avatar picker modal
 
 // ===== BOOT =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -48,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     renderScheduleList();
     applyZoom();
+    initAvatars();
     const saved = localStorage.getItem('air_theme');
     if (saved) applyTheme(saved);
 });
@@ -77,7 +136,7 @@ const api = {
 
 // ===== WIRE ALL EVENTS =====
 function wireEvents(){
-    $$('.tab-btn').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+    $$('[data-tab]').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 
     $('btnStartMeeting').onclick  = () => currentMeeting ? endMeeting() : startMeeting();
     $('btnStopMeeting').onclick   = endMeeting;
@@ -104,6 +163,11 @@ function wireEvents(){
 
     $('btnRefreshRecordings').onclick = loadRecordings;
 
+    // Manager buttons (admin only)
+    if ($('btnCreateManager')) $('btnCreateManager').onclick = createManager;
+    if ($('btnToggleManagerPwd')) $('btnToggleManagerPwd').onclick = () => togglePwdField('managerPassword');
+    if ($('btnSaveManager')) $('btnSaveManager').onclick = updateManager;
+
     // Doubts panel
     if ($('btnRefreshDoubtsPanel')) $('btnRefreshDoubtsPanel').onclick = loadDoubtsPanel;
 
@@ -113,25 +177,43 @@ function wireEvents(){
 
     // Settings sidebar
     $('settingsOverlay').onclick  = closeSettings;
+    $('sAvatar').onclick          = () => { closeSettings(); openAvatarPicker(); };
     $('sChangePassword').onclick  = () => { closeSettings(); openModal('passwordModal'); };
     $('sSchedule').onclick        = () => { closeSettings(); openModal('scheduleModal'); };
     $('sThemes').onclick          = () => { closeSettings(); openModal('themeModal'); };
     $('sSpeakDetection').onclick  = () => { closeSettings(); openModal('speakDetectionModal'); };
     $('sZoomStudents').onclick    = () => { closeSettings(); openModal('zoomModal'); };
     $('fullRecordingToggle').onchange = toggleFullRecording;
-    $('sLogout').onclick          = () => location.href = '/logout';
+
+    // Navbar logout dropdown
+    const doLogout = () => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/logout';
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_csrf';
+        csrfInput.value = $('csrfToken').value;
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
+    };
+    if ($('navLogout')) $('navLogout').onclick = doLogout;
 
     $('btnChangePassword').onclick    = changePassword;
     $('btnSaveStudent').onclick       = updateStudent;
     $('btnAddSchedule').onclick       = addSchedule;
     $('btnSaveSpeakDetection').onclick = saveSpeakDetection;
     $('btnApplyZoom').onclick         = applyZoomFromSlider;
+    $('btnSaveAvatar').onclick        = saveTeacherAvatar;
     $('btnConfirmAction').onclick     = () => { if(confirmCallback) confirmCallback(); closeModal('confirmModal'); };
+    $('navbarAvatar').onclick         = openAvatarPicker;
     $('zoomRange').oninput = () => $('zoomValue').textContent = $('zoomRange').value;
 
     $$('.theme-swatch').forEach(s => s.onclick = () => {
-        $$('.theme-swatch').forEach(x => x.classList.remove('selected'));
+        $$('.theme-swatch').forEach(x => { x.classList.remove('selected'); x.classList.replace('border-indigo-500','border-transparent'); });
         s.classList.add('selected');
+        s.classList.replace('border-transparent','border-indigo-500');
         applyTheme(s.dataset.theme);
     });
 
@@ -144,18 +226,34 @@ function $$(sel){ return document.querySelectorAll(sel); }
 function escHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 function fmtDur(s){ if(!s)return '0:00'; return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function fmtSize(b){ if(!b)return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024&&i<u.length-1){s/=1024;i++} return s.toFixed(1)+' '+u[i]; }
-function toast(msg, type=''){ const t=$('toast'); t.textContent=msg; t.className='toast show '+type; setTimeout(()=>t.classList.remove('show'),3000); }
-function openModal(id){ $(id).classList.add('show'); }
-function closeModal(id){ $(id).classList.remove('show'); }
+function toast(msg, type=''){
+    const t=$('toast'); t.textContent=msg;
+    t.className='toast show px-7 py-3.5 bg-[#1a1a38] rounded-xl text-sm shadow-[0_10px_30px_rgba(0,0,0,0.4)]';
+    if(type==='error') t.classList.add('border','border-red-500/50','text-red-400');
+    else if(type==='success') t.classList.add('border','border-emerald-500/50','text-emerald-400');
+    else t.classList.add('border','border-indigo-500/40','text-white');
+    setTimeout(()=>t.classList.remove('show'),3000);
+}
+function openModal(id){ $(id).classList.add('modal-open'); }
+function closeModal(id){ $(id).classList.remove('modal-open'); }
 function showConfirm(title,msg,cb){ $('confirmTitle').textContent=title; $('confirmMsg').textContent=msg; confirmCallback=cb; openModal('confirmModal'); }
 
 // ===== TABS =====
 function switchTab(tab){
-    $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
-    $$('.tab-pane').forEach(p => p.classList.toggle('active', p.id===tab));
+    $$('[data-tab]').forEach(b => {
+        const isActive = b.dataset.tab===tab;
+        b.classList.toggle('tab-active', isActive);
+        b.classList.toggle('text-white', isActive);
+        b.classList.toggle('text-gray-500', !isActive);
+    });
+    $$('.tab-pane').forEach(p => {
+        if(p.id===tab){ p.classList.add('active-tab'); }
+        else { p.classList.remove('active-tab'); }
+    });
     if(tab==='students-list') loadStudents();
     if(tab==='recordings')    loadRecordings();
     if(tab==='chat' && currentMeeting) loadChatMessages();
+    if(tab==='managers' && isAdmin) loadManagers();
 }
 
 // ================= STUDENTS LIST =================
@@ -168,44 +266,54 @@ function searchStudentsList(){
 }
 function renderStudents(list){
     const c = $('studentsList');
-    if(!list.length){ c.innerHTML='<div class="empty-state"><div class="icon">👥</div><p>No students found</p></div>'; return; }
+    if(!list.length){ c.innerHTML='<div class="text-center py-16 text-gray-500"><div class="text-5xl mb-4">👥</div><p>No students found</p></div>'; return; }
     c.innerHTML = list.map(s => `
-      <div class="student-row" style="font-size:${studentZoom}%">
-        <div class="student-info">
-          <span class="name">${escHtml(s.name)}</span>
-          <span class="username">(${escHtml(s.username)})</span>
-          <span class="status">
-            <span class="status-dot ${s.online?'online':'offline'}"></span>
-            ${s.online?'<span style="color:#2ecc71">Online</span>':'<span style="color:#e63946">Offline</span>'}
-          </span>
-          <div class="dates">Created: ${s.createdAt} | Last seen: ${s.lastSeen}</div>
+      <div class="flex items-center bg-white/[0.02] border border-white/5 border-l-4 border-l-indigo-500 rounded-lg px-5 py-4 mb-2 hover:bg-white/[0.04] transition flex-col md:flex-row gap-3" style="font-size:${studentZoom}%">
+        <div class="flex items-center gap-3 flex-1">
+          ${renderAvatar(s.avatar || 'avatar-1', 'md')}
+          <div class="text-center md:text-left">
+            <span class="text-lg font-bold">${escHtml(s.name)}</span>
+            <span class="text-gray-500 text-sm">(${escHtml(s.username)})</span>
+            <span class="inline-flex items-center gap-1.5 text-xs ml-2.5">
+              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.online?'bg-emerald-400':'bg-red-500'}"></span>
+              ${s.online?'<span class="text-emerald-400">Online</span>':'<span class="text-red-500">Offline</span>'}
+            </span>
+            <div class="text-gray-600 text-xs mt-1">Created: ${s.createdAt} | Last seen: ${s.lastSeen}</div>
+          </div>
         </div>
-        <div class="student-actions">
-          <button class="action-btn btn-whatsapp" onclick="contactWhatsApp('${escHtml(s.name)}','${escHtml(s.username)}')">💬</button>
-          <button class="action-btn btn-edit" onclick="openEditStudent(${s.id},'${escHtml(s.name)}',${s.deviceLock},${s.showRecordings})">✏️ Edit</button>
-          <button class="action-btn btn-block ${s.blocked?'blocked':''}" onclick="doToggleBlock(${s.id})">${s.blocked?'🔓 Unblock':'🚫 Block'}</button>
-          <button class="action-btn btn-mute ${s.muted?'muted':''}" onclick="doToggleMute(${s.id})">${s.muted?'🔊 Unmute':'🔇 Mute'}</button>
-          <button class="action-btn btn-delete" onclick="doDeleteStudent(${s.id},'${escHtml(s.name)}')">🗑️ Delete</button>
+        <div class="flex gap-2 items-center flex-wrap justify-center">
+          <button class="btn btn-xs bg-emerald-500 border-none text-white hover:bg-emerald-600" onclick="contactWhatsApp('${escHtml(s.name)}','${escHtml(s.username)}')">💬</button>
+          <button class="btn btn-xs bg-indigo-500 border-none text-white hover:bg-indigo-600" onclick="openEditStudent(${s.id},'${escHtml(s.name)}',${s.deviceLock},${s.showRecordings},'${s.avatar||'avatar-1'}')">✏️ Edit</button>
+          <button class="btn btn-xs ${s.blocked?'bg-orange-500':'bg-red-500'} border-none text-white hover:opacity-80" onclick="doToggleBlock(${s.id})">${s.blocked?'🔓 Unblock':'🚫 Block'}</button>
+          <button class="btn btn-xs ${s.muted?'bg-red-500':'bg-yellow-500'} border-none text-white hover:opacity-80" onclick="doToggleMute(${s.id})">${s.muted?'🔊 Unmute':'🔇 Mute'}</button>
+          <button class="btn btn-xs bg-red-700 border-none text-white hover:bg-red-800" onclick="doDeleteStudent(${s.id},'${escHtml(s.name)}')">🗑️ Delete</button>
         </div>
       </div>`).join('');
 }
 function updateOnlineCount(students){ $('onlineCount').textContent = students.filter(s=>s.online).length; }
 
-window.contactWhatsApp = (name, username) => {
-    const loginUrl = window.location.origin + '/student/login';
-    const msg = `📚 *Air Meetings — Student Login Details*\n\n`
+window.contactWhatsApp = (name, username, password) => {
+    const loginUrl = window.location.origin + '/login';
+    let msg = `📚 *mtng — Student Login Details*\n\n`
               + `👤 Name: ${name}\n`
-              + `🔑 Username: ${username}\n`
-              + `🔒 Password: (set by teacher)\n\n`
-              + `🌐 Login here: ${loginUrl}\n\n`
-              + `— Sent from Air MeetingsApp`;
+              + `🔑 Username: ${username}\n`;
+    if (password) {
+        msg += `🔒 Password: ${password}\n\n`;
+    } else {
+        msg += `🔒 Password: (use the password given to you)\n\n`;
+    }
+    msg += `🌐 Login here: ${loginUrl}\n\n`
+         + `— Sent from mtng app`;
     const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(waUrl, '_blank');
     toast(`WhatsApp opened for ${name}`, 'success');
 };
-window.openEditStudent = (id,name,dl,sr) => {
+window.openEditStudent = (id,name,dl,sr,avatar) => {
     $('editStudentId').value=id; $('editStudentName').value=name; $('editStudentPassword').value='';
-    $('editDeviceLock').checked=dl; $('editShowRecordings').checked=sr; openModal('editStudentModal');
+    $('editDeviceLock').checked=dl; $('editShowRecordings').checked=sr;
+    $('editStudentAvatar').value = avatar || 'avatar-1';
+    buildAvatarPicker('editStudentAvatarGrid', 'editStudentAvatar', avatar || 'avatar-1', 'sm');
+    openModal('editStudentModal');
 };
 window.doToggleBlock = id => api.post(`/api/students/${id}/block`).then(()=>{ loadStudents(); toast('Block toggled','success'); }).catch(e => toast('Failed: '+e.message,'error'));
 window.doToggleMute  = id => api.post(`/api/students/${id}/mute`).then(()=>{ loadStudents(); toast('Mute toggled','success'); }).catch(e => toast('Failed: '+e.message,'error'));
@@ -215,7 +323,8 @@ window.doDeleteStudent = (id,name) => showConfirm('Delete Student',`Delete "${na
 function updateStudent(){
     const id=$('editStudentId').value;
     const body={name:$('editStudentName').value.trim(), password:$('editStudentPassword').value,
-                deviceLock:$('editDeviceLock').checked, showRecordings:$('editShowRecordings').checked};
+                deviceLock:$('editDeviceLock').checked, showRecordings:$('editShowRecordings').checked,
+                avatar:$('editStudentAvatar').value || 'avatar-1'};
     if(!body.name){ toast('Name required','error'); return; }
     api.put(`/api/students/${id}`,body).then(d=>{
         if(d.error){ toast(d.error,'error'); return; }
@@ -226,15 +335,20 @@ function updateStudent(){
 // ================= CREATE STUDENT =================
 function createStudent(){
     const body={name:$('studentName').value.trim(), username:$('studentUsername').value.trim(),
-                password:$('studentPassword').value, deviceLock:$('deviceLock').checked, showRecordings:$('showRecordings').checked};
+                password:$('studentPassword').value, deviceLock:$('deviceLock').checked, showRecordings:$('showRecordings').checked,
+                avatar:$('studentAvatarChoice').value || 'avatar-1'};
     if(!body.name||!body.username||!body.password){ toast('All fields required','error'); return; }
     $('btnCreateStudent').disabled = true;
     $('btnCreateStudent').textContent = 'Creating…';
     api.post('/api/students',body).then(d=>{
         if(d.error){ toast(d.error,'error'); return; }
         toast(`"${body.name}" created!`,'success');
+        // Auto-open WhatsApp with login details including password
+        contactWhatsApp(body.name, body.username, body.password);
         $('studentName').value=''; $('studentUsername').value=''; $('studentPassword').value='';
         $('deviceLock').checked=false; $('showRecordings').checked=true;
+        $('studentAvatarChoice').value='avatar-1';
+        buildAvatarPicker('createStudentAvatarGrid', 'studentAvatarChoice', 'avatar-1', 'sm');
         $('optDeviceLock').classList.remove('active'); $('optShowRec').classList.add('active');
         switchTab('students-list');
     }).catch(e => {
@@ -277,15 +391,15 @@ function checkActiveMeeting(){
 function updateMeetingUI(active){
     const btn=$('btnStartMeeting'), dot=$('recDot'), tmr=$('meetingTimer'), ban=$('meetingBanner');
     if(active){
-        btn.textContent='End Meeting'; btn.classList.add('end-meeting');
-        dot.classList.add('recording'); tmr.classList.add('active');
-        ban.innerHTML='<span style="color:#2ecc71;font-weight:600">🟢 Meeting Active — Broadcasting to students. Click 🎤 to start voice.</span>';
-        ban.classList.add('live');
+        btn.textContent='End Meeting'; btn.className='btn btn-sm bg-gradient-to-r from-red-900 to-red-700 border-red-400/40 text-white font-semibold';
+        dot.classList.add('recording'); tmr.classList.add('border-red-500/50','bg-red-500/5');
+        ban.innerHTML='<span class="text-emerald-400 font-semibold text-sm">🟢 Meeting Active — Broadcasting to students. Click 🎤 to start voice.</span>';
+        ban.classList.add('border-emerald-500/35','bg-gradient-to-r','from-emerald-900/25','to-emerald-900/8');
     } else {
-        btn.textContent='Start Meeting'; btn.classList.remove('end-meeting');
-        dot.classList.remove('recording'); tmr.classList.remove('active');
-        ban.innerHTML='<span class="banner-idle">Press <strong>Start Meeting</strong> to begin</span>';
-        ban.classList.remove('live');
+        btn.textContent='Start Meeting'; btn.className='btn btn-sm bg-gradient-to-r from-indigo-900 to-indigo-700 border-indigo-400/40 text-white font-semibold hover:from-indigo-700 hover:to-indigo-500';
+        dot.classList.remove('recording'); tmr.classList.remove('border-red-500/50','bg-red-500/5');
+        ban.innerHTML='<span class="text-emerald-400/70 text-sm">Press <strong>Start Meeting</strong> to begin</span>';
+        ban.classList.remove('border-emerald-500/35');
         $('timerDisplay').textContent='00:00:00';
         $('audioVisualiser').classList.remove('active');
     }
@@ -356,21 +470,12 @@ async function startBroadcast(){
             broadcastLocalChunks.push(chunkBlob);
         };
 
-        // On stop → final upload + auto-save locally + meeting recording
+        // On stop → final upload + meeting recording (server-side only, no local download popup)
         broadcastProcessor.onStop = (fullBlob) => {
             uploadBroadcastChunk(fullBlob);
             uploadMeetingRecording(fullBlob);
-
-            // Auto-save broadcast to teacher's local Downloads folder
-            autoSaveCounter++;
-            localStorage.setItem('air_autoSaveCount', autoSaveCounter);
-            const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-            autoSaveLocal(fullBlob, `broadcast_${teacherName}_${ts}.webm`);
-            toast(`📁 Broadcast auto-saved locally (#${autoSaveCounter})`, 'success');
+            toast('📁 Broadcast saved to server', 'success');
         };
-
-        // Periodic local auto-save: every 30 seconds, save accumulated chunks
-        startBroadcastAutoSave();
 
         // Record in 5-second timeslices
         broadcastProcessor.startRecording(5000);
@@ -381,7 +486,7 @@ async function startBroadcast(){
 
         isMicActive=true;
         $('btnMicToggle').classList.add('active');
-        $('btnMic').classList.add('active-ctrl');
+        $('btnMic').classList.add('text-emerald-400');
         toast('🎤 Broadcasting with enhanced voice clarity — students can hear you','success');
     } catch(e){
         toast('Mic access denied','error');
@@ -409,7 +514,7 @@ function stopBroadcast(){
     isMicActive=false;
     $('btnMicToggle').classList.remove('active');
     $('btnMicToggle').querySelector('.ctrl-icon').textContent = '🎤';
-    $('btnMic').classList.remove('active-ctrl');
+    $('btnMic').classList.remove('text-emerald-400');
     $('btnMic').textContent = '🎤';
     $('audioVisualiser').classList.remove('active');
     broadcastLocalChunks = [];
@@ -475,9 +580,8 @@ function startVadLevelPolling() {
         if (!fill) return;
         const pct = Math.min(100, Math.round(level * 300)); // amplify for visibility
         fill.style.width = pct + '%';
-        // Color changes for high level
-        if (pct > 70) fill.classList.add('high');
-        else fill.classList.remove('high');
+        if (pct > 70) { fill.style.background = 'linear-gradient(90deg, #2ecc71, #f39c12)'; }
+        else { fill.style.background = 'linear-gradient(90deg, #2ecc71, #27ae60)'; }
     }, 80);
 }
 
@@ -502,17 +606,8 @@ function stopBroadcastAutoSave() {
 }
 
 function flushLocalAutoSave() {
-    if (broadcastLocalChunks.length === 0) return;
-    try {
-        const merged = new Blob(broadcastLocalChunks, { type: 'audio/webm' });
-        if (merged.size < 500) return; // skip tiny saves
-        autoSaveCounter++;
-        localStorage.setItem('air_autoSaveCount', autoSaveCounter);
-        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        autoSaveLocal(merged, `broadcast_autosave_${teacherName}_${ts}_part${autoSaveCounter}.webm`);
-        broadcastLocalChunks = []; // reset after flush
-        console.log(`[AutoSave] Saved broadcast part #${autoSaveCounter}`);
-    } catch (e) { console.error('[AutoSave] Error:', e); }
+    // No-op: server handles all recording storage, no local downloads needed
+    broadcastLocalChunks = [];
 }
 
 // ===== SPEAKER =====
@@ -521,8 +616,8 @@ function toggleSpeaker(){
     const icon=isSpeakerOn?'🔊':'🔇';
     $('btnSpeaker').textContent=icon;
     $('btnSpeakerToggle').querySelector('.ctrl-icon').textContent=icon;
-    if(!isSpeakerOn){ $('btnSpeaker').classList.add('muted-ctrl'); $('btnSpeakerToggle').classList.add('off'); }
-    else            { $('btnSpeaker').classList.remove('muted-ctrl'); $('btnSpeakerToggle').classList.remove('off'); }
+    if(!isSpeakerOn){ $('btnSpeaker').classList.add('opacity-40'); $('btnSpeakerToggle').classList.add('opacity-40'); }
+    else            { $('btnSpeaker').classList.remove('opacity-40'); $('btnSpeakerToggle').classList.remove('opacity-40'); }
     toast(isSpeakerOn?'Speaker ON':'Speaker OFF','success');
 }
 
@@ -541,7 +636,7 @@ function loadDoubtsPanel(){
     api.get(url).then(doubts=>{
         if($('doubtCount')) $('doubtCount').textContent=`(${doubts.length})`;
         const c=$('doubtsPanelList');
-        if(!doubts.length){ c.innerHTML='<div class="empty-state" style="padding:20px"><p>No doubts yet</p></div>'; return; }
+        if(!doubts.length){ c.innerHTML='<div class="text-center py-5 text-gray-500"><p>No doubts yet</p></div>'; return; }
 
         // Track recently submitted doubts as "speaking" students (within last 20 sec)
         const now = Date.now();
@@ -555,14 +650,15 @@ function loadDoubtsPanel(){
         updateSpeakingStrip(recentSpeakers);
 
         c.innerHTML=doubts.map(d=>`
-          <div class="doubt-card ${d.answered?'answered':'pending'}">
-            <div class="doubt-header">
+          <div class="bg-white/[0.03] border border-white/5 ${d.answered?'border-l-4 border-l-emerald-500':'border-l-4 border-l-yellow-500'} rounded-xl px-4 py-3 mb-2 transition">
+            <div class="flex items-center gap-2.5 flex-wrap mb-1">
+              ${renderAvatar(d.studentAvatar || 'avatar-1', 'sm')}
               <strong>${escHtml(d.studentName)}</strong>
-              <span style="color:#888;font-size:12px">${d.createdAt} · ${fmtDur(d.durationSeconds)}</span>
-              ${d.answered?'<span class="doubt-badge answered">✅ Answered</span>':'<span class="doubt-badge pending">⏳ Pending</span>'}
+              <span class="text-gray-500 text-xs">${d.createdAt} · ${fmtDur(d.durationSeconds)}</span>
+              ${d.answered?'<span class="badge badge-success badge-xs">✅ Answered</span>':'<span class="badge badge-warning badge-xs">⏳ Pending</span>'}
             </div>
-            <audio class="audio-player" controls preload="none" src="/api/doubts/${d.id}/play" style="width:100%;margin:6px 0"></audio>
-            ${!d.answered?`<button class="btn-confirm" style="font-size:12px;padding:6px 14px" onclick="openAnswerDoubt(${d.id})">💬 Answer</button>`:''}
+            <audio class="w-full h-9 rounded-lg my-1.5" controls preload="none" src="/api/doubts/${d.id}/play"></audio>
+            ${!d.answered?`<button class="btn btn-primary btn-xs" onclick="openAnswerDoubt(${d.id})">💬 Answer</button>`:''}
           </div>`).join('');
     });
 
@@ -595,19 +691,16 @@ function updateSpeakingStrip(speakerNames) {
     // Show teacher indicator in strip
     if (showTeacher) {
         const tBadge = document.createElement('span');
-        tBadge.className = 'speaking-avatar';
-        tBadge.style.background = 'rgba(108,99,255,0.15)';
-        tBadge.style.borderColor = 'rgba(108,99,255,0.3)';
-        tBadge.style.color = '#6c63ff';
-        tBadge.innerHTML = `<span class="sa-dot" style="background:#6c63ff"></span>You (Teacher)`;
+        tBadge.className = 'speaking-avatar inline-flex items-center gap-1.5 bg-indigo-500/15 border border-indigo-500/30 rounded-full px-3 py-0.5 text-xs text-indigo-400 font-semibold whitespace-nowrap';
+        tBadge.innerHTML = `${renderAvatar(teacherAvatar, 'sm')}<span class="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0"></span>You (Teacher)`;
         container.appendChild(tBadge);
     }
 
     // Show student speakers
     speakerNames.forEach(name => {
         const badge = document.createElement('span');
-        badge.className = 'speaking-avatar';
-        badge.innerHTML = `<span class="sa-dot"></span>${escHtml(name)}`;
+        badge.className = 'speaking-avatar inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-3 py-0.5 text-xs text-emerald-400 font-semibold whitespace-nowrap';
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></span>${escHtml(name)}`;
         container.appendChild(badge);
     });
 
@@ -667,9 +760,6 @@ async function submitAnswer(){
     if(note) fd.append('note',note);
     if(answerBlob) {
         fd.append('audio', answerBlob, 'answer.webm');
-        // Auto-save answer audio to teacher's local Downloads
-        const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-        autoSaveLocal(answerBlob, `answer_doubt${id}_${ts}.webm`);
     }
 
     const h={}; if(csrfHeader&&csrfToken) h[csrfHeader]=csrfToken;
@@ -692,17 +782,18 @@ function sendChatMessage(){
     api.post(`/api/meeting/${currentMeeting.id}/chat`,{content:txt}).then(m=>{ appendChat(m); inp.value=''; });
 }
 function appendChat(m){
-    const c=$('chatMessages'); const nc=c.querySelector('.no-chat'); if(nc) nc.remove();
-    const role=m.senderRole==='TEACHER'?'teacher':'student';
-    const div=document.createElement('div'); div.className='chat-msg '+role;
-    div.innerHTML=`<div class="sender">${escHtml(m.senderName)}</div><div class="content">${escHtml(m.content)}</div><div class="time">${m.timestamp}</div>`;
+    const c=$('chatMessages'); const nc=c.querySelector('.text-center'); if(nc && nc.textContent.includes('No messages')) nc.remove();
+    const isTeacher=m.senderRole==='TEACHER';
+    const div=document.createElement('div');
+    div.className=`max-w-[70%] md:max-w-[70%] mb-3 px-4 py-3 rounded-xl border ${isTeacher?'bg-gradient-to-r from-indigo-500/30 to-indigo-500/10 border-indigo-500/20 ml-auto rounded-br-sm':'bg-white/5 border-white/10 mr-auto rounded-bl-sm'}`;
+    div.innerHTML=`<div class="font-semibold text-xs mb-1 ${isTeacher?'text-indigo-400':'text-gray-400'}">${escHtml(m.senderName)}</div><div class="text-sm leading-relaxed">${escHtml(m.content)}</div><div class="text-[11px] text-gray-600 text-right mt-1">${m.timestamp}</div>`;
     c.appendChild(div); c.scrollTop=c.scrollHeight;
 }
 function loadChatMessages(){
     if(!currentMeeting) return;
     api.get(`/api/meeting/${currentMeeting.id}/chat`).then(msgs=>{
         const c=$('chatMessages');
-        if(!msgs.length){ c.innerHTML='<div class="no-chat">No messages yet.</div>'; return; }
+        if(!msgs.length){ c.innerHTML='<div class="text-center text-gray-600 py-10">No messages yet.</div>'; return; }
         c.innerHTML=''; msgs.forEach(appendChat);
     });
 }
@@ -711,18 +802,18 @@ function loadChatMessages(){
 function loadRecordings(){
     api.get('/api/recordings').then(list=>{
         const c=$('recordingsList');
-        if(!list.length){ c.innerHTML='<div class="empty-state"><div class="icon">📼</div><p>No recordings yet</p></div>'; return; }
+        if(!list.length){ c.innerHTML='<div class="text-center py-16 text-gray-500"><div class="text-5xl mb-4">📼</div><p>No recordings yet</p></div>'; return; }
         c.innerHTML=list.map(r=>`
-          <div class="recording-item">
-            <div class="recording-info">
-              <div class="rec-name">🎤 ${escHtml(r.fileName)}</div>
-              <div class="rec-meta">${r.studentName||'Teacher'} · ${fmtDur(r.durationSeconds)} · ${fmtSize(r.fileSize)} · ${r.createdAt}</div>
-              <audio class="audio-player" controls preload="none" src="/api/recordings/${r.id}/play"></audio>
+          <div class="flex items-center bg-white/[0.03] border border-white/5 rounded-xl px-5 py-4 mb-2.5 hover:bg-white/[0.05] transition">
+            <div class="flex-1">
+              <div class="font-semibold text-base mb-1">🎤 ${escHtml(r.fileName)}</div>
+              <div class="text-gray-600 text-xs mb-2">${r.studentName||'Teacher'} · ${fmtDur(r.durationSeconds)} · ${fmtSize(r.fileSize)} · ${r.createdAt}</div>
+              <audio class="w-full h-9 rounded-lg" controls preload="none" src="/api/recordings/${r.id}/play"></audio>
             </div>
-            <div class="recording-actions">
-              <button class="btn-play" onclick="playRec(${r.id})">▶ Play</button>
-              <button class="btn-download" onclick="downloadRec(${r.id},'${escHtml(r.fileName)}')">⬇ Download</button>
-              <button class="btn-del-rec" onclick="delRec(${r.id})">🗑 Delete</button>
+            <div class="flex gap-2 ml-3">
+              <button class="btn btn-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30" onclick="playRec(${r.id})">▶ Play</button>
+              <button class="btn btn-xs bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/30" onclick="downloadRec(${r.id},'${escHtml(r.fileName)}')">⬇ Download</button>
+              <button class="btn btn-xs bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30" onclick="delRec(${r.id})">🗑 Delete</button>
             </div>
           </div>`).join('');
     });
@@ -732,9 +823,61 @@ window.downloadRec = (id,name) => { const a=document.createElement('a'); a.href=
 window.delRec = id => showConfirm('Delete Recording','Permanently delete?',()=>{ api.del(`/api/recordings/${id}`).then(()=>{ loadRecordings(); toast('Deleted','success'); }); });
 
 // ================= SETTINGS =================
-function openSettings(){ $('settingsOverlay').classList.add('show'); $('settingsSidebar').classList.add('show'); }
-function closeSettings(){ $('settingsOverlay').classList.remove('show'); $('settingsSidebar').classList.remove('show'); }
-function loadSettings(){ api.get('/api/settings').then(s=>{ $('fullRecordingToggle').checked=s.fullMeetingRecording; }); }
+function openSettings(){ $('settingsOverlay').classList.remove('hidden'); $('settingsSidebar').style.right='0'; }
+function closeSettings(){ $('settingsOverlay').classList.add('hidden'); $('settingsSidebar').style.right='-320px'; }
+function loadSettings(){
+    api.get('/api/settings').then(s=>{
+        $('fullRecordingToggle').checked=s.fullMeetingRecording;
+        if (s.avatar) { teacherAvatar = s.avatar; updateNavbarAvatar(); }
+    });
+}
+
+function initAvatars() {
+    // Render teacher avatar in navbar
+    updateNavbarAvatar();
+    // Build student creation avatar picker
+    buildAvatarPicker('createStudentAvatarGrid', 'studentAvatarChoice', 'avatar-1', 'sm');
+}
+
+function updateNavbarAvatar() {
+    const container = $('navbarAvatar');
+    if (container) container.innerHTML = renderAvatar(teacherAvatar, 'md');
+    // Also update the dropdown avatar
+    const dropdownAv = $('dropdownAvatar');
+    if (dropdownAv) dropdownAv.innerHTML = renderAvatar(teacherAvatar, 'sm');
+}
+
+function openAvatarPicker() {
+    selectedTeacherAvatar = teacherAvatar;
+    const grid = $('avatarGrid');
+    if (!grid) return;
+    grid.innerHTML = AVATARS.map(av => `
+        <div class="avatar-picker-item flex flex-col items-center gap-1.5 cursor-pointer p-2 rounded-xl border-2 transition-all hover:scale-110 ${av.id === selectedTeacherAvatar ? 'border-indigo-500 bg-indigo-500/10 scale-105' : 'border-transparent hover:border-white/20'}"
+             data-avatar="${av.id}">
+            <div class="rounded-full bg-gradient-to-br ${av.bg} w-14 h-14 flex items-center justify-center shadow-lg text-3xl"><span class="drop-shadow">${av.icon}</span></div>
+            <span class="text-[10px] text-gray-500">${av.label}</span>
+        </div>`).join('');
+    grid.querySelectorAll('.avatar-picker-item').forEach(opt => {
+        opt.onclick = () => {
+            grid.querySelectorAll('.avatar-picker-item').forEach(o => { o.classList.remove('border-indigo-500','bg-indigo-500/10','scale-105'); o.classList.add('border-transparent'); });
+            opt.classList.add('border-indigo-500','bg-indigo-500/10','scale-105');
+            opt.classList.remove('border-transparent');
+            selectedTeacherAvatar = opt.dataset.avatar;
+        };
+    });
+    openModal('avatarModal');
+}
+
+function saveTeacherAvatar() {
+    if (!selectedTeacherAvatar) return;
+    api.post('/api/settings/avatar', { avatar: selectedTeacherAvatar }).then(d => {
+        if (d.error) { toast(d.error, 'error'); return; }
+        teacherAvatar = selectedTeacherAvatar;
+        updateNavbarAvatar();
+        closeModal('avatarModal');
+        toast('Avatar updated! ' + getAvatarById(teacherAvatar).icon, 'success');
+    }).catch(e => toast('Failed: ' + e.message, 'error'));
+}
 function changePassword(){
     const o=$('oldPassword').value,n=$('newPassword').value,c=$('confirmPassword').value;
     if(!o||!n){ toast('Fill all fields','error'); return; }
@@ -754,7 +897,12 @@ function saveSpeakDetection(){
 function applyTheme(name){
     document.body.className=name==='dark'?'':'theme-'+name;
     localStorage.setItem('air_theme',name);
-    $$('.theme-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.theme===name));
+    $$('.theme-swatch').forEach(s=>{
+        const active = s.dataset.theme===name;
+        s.classList.toggle('selected',active);
+        if(active){ s.classList.remove('border-transparent'); s.classList.add('border-indigo-500'); }
+        else { s.classList.remove('border-indigo-500'); s.classList.add('border-transparent'); }
+    });
 }
 function addSchedule(){
     const title=$('schedTitle').value.trim(),date=$('schedDate').value,time=$('schedTime').value,dur=$('schedDuration').value;
@@ -765,10 +913,75 @@ function addSchedule(){
 }
 function renderScheduleList(){
     const c=$('scheduleList'); if(!c) return;
-    if(!schedules.length){ c.innerHTML='<p style="color:#666;text-align:center">No scheduled meetings</p>'; return; }
-    c.innerHTML=schedules.map(s=>`<div class="sched-entry"><div class="sched-info"><div class="sched-title">${escHtml(s.title)}</div><div class="sched-time">${s.date} at ${s.time} · ${s.duration} min</div></div><button class="sched-remove" onclick="removeSched(${s.id})">✕</button></div>`).join('');
+    if(!schedules.length){ c.innerHTML='<p class="text-gray-600 text-center">No scheduled meetings</p>'; return; }
+    c.innerHTML=schedules.map(s=>`<div class="flex justify-between items-center px-3.5 py-2.5 bg-white/[0.03] border border-white/5 rounded-lg mb-2"><div class="flex-1"><div class="font-semibold">${escHtml(s.title)}</div><div class="text-xs text-gray-500">${s.date} at ${s.time} · ${s.duration} min</div></div><button class="btn btn-xs bg-red-500/20 border border-red-500/30 text-red-400" onclick="removeSched(${s.id})">✕</button></div>`).join('');
 }
 window.removeSched=id=>{ schedules=schedules.filter(s=>s.id!==id); localStorage.setItem('air_schedules',JSON.stringify(schedules)); renderScheduleList(); toast('Removed','success'); };
 function applyZoomFromSlider(){ studentZoom=parseInt($('zoomRange').value,10); localStorage.setItem('air_zoom',studentZoom); applyZoom(); closeModal('zoomModal'); toast(`Zoom: ${studentZoom}%`,'success'); loadStudents(); }
 function applyZoom(){ $('zoomRange').value=studentZoom; $('zoomValue').textContent=studentZoom; }
 function togglePwdField(id){ const f=$(id); f.type=f.type==='password'?'text':'password'; }
+
+// ================= MANAGER CRUD (Admin Only) =================
+function loadManagers(){
+    if (!isAdmin) return;
+    api.get('/api/managers').then(managers => {
+        renderManagers(managers);
+    }).catch(e => { console.error('Load managers error:', e); });
+}
+function renderManagers(list){
+    const c = $('managersList');
+    if (!c) return;
+    if(!list.length){ c.innerHTML='<div class="text-center py-16 text-gray-500"><div class="text-5xl mb-4">👔</div><p>No managers found</p></div>'; return; }
+    c.innerHTML = list.map(m => `
+      <div class="flex items-center bg-white/[0.02] border border-white/5 border-l-4 border-l-amber-500 rounded-lg px-5 py-4 mb-2 hover:bg-white/[0.04] transition flex-col md:flex-row gap-3">
+        <div class="flex items-center gap-3 flex-1">
+          ${renderAvatar(m.avatar || 'avatar-1', 'md')}
+          <div class="text-center md:text-left">
+            <span class="text-lg font-bold">${escHtml(m.name)}</span>
+            <span class="text-gray-500 text-sm">(${escHtml(m.username)})</span>
+            <span class="badge badge-sm bg-blue-500/20 border-blue-500/30 text-blue-400 ml-2">MANAGER</span>
+            <div class="text-gray-600 text-xs mt-1">Created: ${m.createdAt}</div>
+          </div>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap justify-center">
+          <button class="btn btn-xs bg-indigo-500 border-none text-white hover:bg-indigo-600" onclick="openEditManager(${m.id},'${escHtml(m.name)}')">✏️ Edit</button>
+          <button class="btn btn-xs bg-red-700 border-none text-white hover:bg-red-800" onclick="doDeleteManager(${m.id},'${escHtml(m.name)}')">🗑️ Delete</button>
+        </div>
+      </div>`).join('');
+}
+function createManager(){
+    const body={name:$('managerName').value.trim(), username:$('managerUsername').value.trim(),
+                password:$('managerPassword').value};
+    if(!body.name||!body.username||!body.password){ toast('All fields required','error'); return; }
+    $('btnCreateManager').disabled = true;
+    $('btnCreateManager').textContent = 'Creating…';
+    api.post('/api/managers',body).then(d=>{
+        if(d.error){ toast(d.error,'error'); return; }
+        toast(`Manager "${body.name}" created!`,'success');
+        $('managerName').value=''; $('managerUsername').value=''; $('managerPassword').value='';
+        loadManagers();
+    }).catch(e => {
+        console.error('Create manager error:', e);
+        toast('Failed to create manager: ' + e.message, 'error');
+    }).finally(() => {
+        $('btnCreateManager').disabled = false;
+        $('btnCreateManager').textContent = 'Create Manager';
+    });
+}
+window.openEditManager = (id, name) => {
+    $('editManagerId').value=id; $('editManagerName').value=name; $('editManagerPassword').value='';
+    openModal('editManagerModal');
+};
+function updateManager(){
+    const id=$('editManagerId').value;
+    const body={name:$('editManagerName').value.trim(), password:$('editManagerPassword').value};
+    if(!body.name){ toast('Name required','error'); return; }
+    api.put(`/api/managers/${id}`,body).then(d=>{
+        if(d.error){ toast(d.error,'error'); return; }
+        toast('Manager updated','success'); closeModal('editManagerModal'); loadManagers();
+    }).catch(e => { console.error('Update manager error:', e); toast('Failed to update: ' + e.message, 'error'); });
+}
+window.doDeleteManager = (id, name) => showConfirm('Delete Manager',`Delete manager "${name}"? This cannot be undone.`,()=>{
+    api.del(`/api/managers/${id}`).then(()=>{ loadManagers(); toast(`Manager "${name}" deleted`,'success'); });
+});
+

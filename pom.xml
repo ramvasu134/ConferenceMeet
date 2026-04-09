@@ -12,7 +12,7 @@
 	<artifactId>MeetingsApp</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>MeetingsApp</name>
-	<description>Air - Teacher Student Meetings Application</description>
+	<description>mtng - Teacher Student Meetings Application</description>
 	<properties>
 		<java.version>17</java.version>
 	</properties>

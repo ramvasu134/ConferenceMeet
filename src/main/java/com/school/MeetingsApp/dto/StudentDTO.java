@@ -14,6 +14,7 @@ public class StudentDTO {
     private boolean online;
     private String createdAt;
     private String lastSeen;
+    private String avatar;
 
     public static StudentDTO fromEntity(Student s) {
         StudentDTO dto = new StudentDTO();
@@ -29,6 +30,7 @@ public class StudentDTO {
         dto.online = s.isOnline();
         dto.createdAt = s.getCreatedAt() != null ? s.getCreatedAt().format(fmt) : "";
         dto.lastSeen = s.getLastSeen() != null ? s.getLastSeen().format(fmtTime) : "Never";
+        dto.avatar = s.getAvatar() != null ? s.getAvatar() : "avatar-1";
         return dto;
     }
 
@@ -52,5 +54,6 @@ public class StudentDTO {
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     public String getLastSeen() { return lastSeen; }
     public void setLastSeen(String lastSeen) { this.lastSeen = lastSeen; }
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
 }
-

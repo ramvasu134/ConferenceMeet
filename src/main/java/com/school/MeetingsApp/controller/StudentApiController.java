@@ -23,10 +23,16 @@ public class StudentApiController {
     @GetMapping
     public List<StudentDTO> getStudents(Authentication auth,
                                          @RequestParam(required = false) String search) {
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (search != null && !search.trim().isEmpty()) {
-            return studentService.searchStudents(auth.getName(), search.trim());
+            return isAdmin
+                    ? studentService.searchAllStudents(search.trim())
+                    : studentService.searchStudents(auth.getName(), search.trim());
         }
-        return studentService.getStudentsByTeacher(auth.getName());
+        return isAdmin
+                ? studentService.getAllStudents()
+                : studentService.getStudentsByTeacher(auth.getName());
     }
 
     @PostMapping

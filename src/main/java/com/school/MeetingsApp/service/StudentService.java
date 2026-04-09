@@ -34,11 +34,24 @@ public class StudentService {
                 .stream().map(StudentDTO::fromEntity).collect(Collectors.toList());
     }
 
+    public List<StudentDTO> getAllStudents() {
+        return studentRepository.findAll().stream()
+                .map(StudentDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
+
     public List<StudentDTO> searchStudents(String teacherUsername, String query) {
         Teacher teacher = teacherRepository.findByUsername(teacherUsername)
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
         return studentRepository.findByTeacherAndNameContainingIgnoreCaseOrderByCreatedAtDesc(teacher, query)
                 .stream().map(StudentDTO::fromEntity).collect(Collectors.toList());
+    }
+
+    public List<StudentDTO> searchAllStudents(String query) {
+        return studentRepository.findAll().stream()
+                .filter(s -> s.getName().toLowerCase().contains(query.toLowerCase()))
+                .map(StudentDTO::fromEntity)
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -58,6 +71,9 @@ public class StudentService {
         );
         student.setDeviceLock(request.isDeviceLock());
         student.setShowRecordings(request.isShowRecordings());
+        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+            student.setAvatar(request.getAvatar());
+        }
 
         return StudentDTO.fromEntity(studentRepository.save(student));
     }
@@ -73,6 +89,9 @@ public class StudentService {
         }
         student.setDeviceLock(request.isDeviceLock());
         student.setShowRecordings(request.isShowRecordings());
+        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+            student.setAvatar(request.getAvatar());
+        }
 
         return StudentDTO.fromEntity(studentRepository.save(student));
     }

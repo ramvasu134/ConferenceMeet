@@ -4,7 +4,7 @@
 # ============================================================
 services:
   - type: web
-    name: air-meetings-app
+    name: mtng-app
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free  # Change to "starter" ($7/mo) for persistent disk

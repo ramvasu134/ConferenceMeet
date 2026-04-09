@@ -3,46 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Air - Student Login</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>MTNG - Student Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
-        .logo-section{text-align:center;margin-bottom:20px}
-        .logo-icon{font-size:64px;display:block;margin-bottom:8px}
-        .logo-text{font-size:44px;font-weight:bold;background:linear-gradient(135deg,#00b4d8,#ff6b35,#e63946);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .login-card{background:rgba(20,20,50,0.8);border:1px solid rgba(100,100,200,0.3);border-radius:16px;padding:40px;width:440px;max-width:92%}
-        .login-title{text-align:center;font-size:26px;margin-bottom:28px}
-        .error-box{background:rgba(230,57,70,0.15);border:1px solid rgba(230,57,70,0.4);border-radius:8px;padding:12px;text-align:center;color:#ff6b6b;margin-bottom:18px;display:none}
-        .btn-signin{width:100%;padding:14px;background:linear-gradient(135deg,rgba(100,149,237,0.6),rgba(100,149,237,0.3));border:1px solid rgba(100,149,237,0.4);border-radius:10px;color:#fff;font-size:18px;cursor:pointer;transition:.3s;display:flex;align-items:center;justify-content:center;gap:10px}
-        .btn-signin:hover{background:linear-gradient(135deg,rgba(100,149,237,0.8),rgba(100,149,237,0.5));box-shadow:0 0 20px rgba(100,149,237,0.3)}
-        .link-row{text-align:center;margin-top:18px}
-        .link-row a{color:#6c63ff;text-decoration:none}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #fdf0e2 0%, #fce4cc 40%, #fdd9b5 100%);
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-card {
+            background: #fff; border-radius: 24px;
+            padding: 50px 44px 40px; width: 430px; max-width: 92%;
+            box-shadow: 0 8px 40px rgba(180,120,60,0.12), 0 2px 12px rgba(0,0,0,0.04);
+            text-align: center;
+        }
+        .logo-icon { width: 72px; height: 72px; margin: 0 auto 18px; display: flex; align-items: center; justify-content: center; font-size: 40px; }
+        .logo-text {
+            font-family: 'Orbitron', sans-serif; font-size: 42px; font-weight: 900;
+            letter-spacing: 5px; text-transform: uppercase;
+            background: linear-gradient(135deg, #d4790e, #c0520a, #a33a08);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            margin-bottom: 4px;
+        }
+        .tagline { font-size: 13px; color: #888; letter-spacing: 1px; margin-bottom: 6px; }
+        .role-badge {
+            display: inline-block; background: linear-gradient(135deg, #d4790e, #c0520a);
+            color: #fff; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            letter-spacing: 1px; margin-bottom: 28px;
+        }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%; padding: 13px 16px;
+            background: #fefefe; border: 1.5px solid #e0d5c8; border-radius: 10px;
+            font-size: 15px; color: #333; outline: none; transition: 0.25s;
+            font-family: 'Inter', sans-serif;
+        }
+        .form-group input::placeholder { color: #bbb; }
+        .form-group input:focus { border-color: #d4790e; box-shadow: 0 0 0 3px rgba(212,121,14,0.12); }
+        .btn-signin {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #d4790e, #c0520a);
+            border: none; border-radius: 10px; color: #fff;
+            font-size: 17px; font-weight: 600; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-top: 6px; font-family: 'Inter', sans-serif; letter-spacing: 0.3px;
+        }
+        .btn-signin:hover { background: linear-gradient(135deg, #c0520a, #a33a08); box-shadow: 0 6px 20px rgba(192,82,10,0.35); transform: translateY(-1px); }
+        .btn-signin:active { transform: translateY(0); }
+        .btn-signin:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+        .error-box {
+            background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px;
+            padding: 12px; text-align: center; color: #b91c1c; margin-bottom: 18px; font-size: 14px;
+            display: none;
+        }
+        .error-box.show { display: block; }
+        .card-footer { margin-top: 22px; padding-top: 18px; border-top: 1px solid #f0e8de; font-size: 13px; color: #999; }
+        .card-footer a { color: #c0520a; text-decoration: none; font-weight: 600; }
+        .card-footer a:hover { text-decoration: underline; }
+        .secure-badge { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; color: #888; margin-top: 16px; }
     </style>
 </head>
 <body>
-    <div class="logo-section">
-        <span class="logo-icon">🎓</span>
-        <span class="logo-text">Air</span>
-    </div>
-
     <div class="login-card">
-        <div class="login-title">📖 Student Login</div>
+        <div class="logo-icon">📹</div>
+        <div class="logo-text">MTNG</div>
+        <div class="tagline">Meeting Platform</div>
+        <div class="role-badge">📖 STUDENT LOGIN</div>
+
         <div class="error-box" id="errorBox"></div>
 
         <div class="form-group">
-            <label class="form-label">👤 Username</label>
-            <input type="text" id="username" class="form-input" placeholder="Enter your username" autofocus>
+            <label>👤 Username</label>
+            <input type="text" id="username" placeholder="Enter your username" autofocus>
         </div>
         <div class="form-group">
-            <label class="form-label">🔐 Password</label>
-            <input type="password" id="password" class="form-input" placeholder="Enter your password">
+            <label>🔐 Password</label>
+            <input type="password" id="password" placeholder="Enter your password">
         </div>
+        <button class="btn-signin" id="btnLogin">🚀 Sign In</button>
 
-        <button class="btn-signin" id="btnLogin">➡️ Sign In</button>
-
-        <div class="link-row">
-            <a href="/login">Teacher Login →</a>
+        <div class="card-footer">
+            <a href="/login">🔑 Admin / Manager Login →</a>
         </div>
+        <div class="secure-badge">🔒 Secure Session-Based Authentication</div>
     </div>
 
     <script>
@@ -51,6 +102,7 @@
 
         btnLogin.onclick = doLogin;
         document.getElementById('password').onkeypress = e => { if(e.key==='Enter') doLogin(); };
+        document.getElementById('username').onkeypress = e => { if(e.key==='Enter') document.getElementById('password').focus(); };
 
         async function doLogin(){
             const username = document.getElementById('username').value.trim();
@@ -60,8 +112,10 @@
             btnLogin.disabled = true; btnLogin.textContent = 'Signing in…';
             try {
                 const res = await fetch('/api/student/login', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({username, password})
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({username, password}),
+                    credentials: 'same-origin'
                 });
                 const data = await res.json();
                 if(res.ok){
@@ -70,15 +124,14 @@
                     showErr(data.error || 'Login failed');
                 }
             } catch(e){ showErr('Network error'); }
-            btnLogin.disabled = false; btnLogin.textContent = '➡️ Sign In';
+            btnLogin.disabled = false; btnLogin.innerHTML = '🚀 Sign In';
         }
 
         function showErr(msg){
             errorBox.textContent = msg;
-            errorBox.style.display = 'block';
-            setTimeout(()=> errorBox.style.display='none', 4000);
+            errorBox.classList.add('show');
+            setTimeout(()=> errorBox.classList.remove('show'), 4000);
         }
     </script>
 </body>
 </html>
-

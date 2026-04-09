@@ -1,5 +1,5 @@
 /* ============================================================
-   Air – Student Dashboard Controller v2
+   mtng – Student Dashboard Controller v2
    Polls teacher broadcast, plays filtered audio,
    records doubt clips with full voice processing pipeline,
    auto-saves clips locally, shows speaking indicator
@@ -7,6 +7,34 @@
 
 const studentId   = document.getElementById('studentId')?.value;
 const studentName = document.getElementById('studentName')?.value;
+const studentAvatar = document.getElementById('studentAvatar')?.value || 'avatar-1';
+
+// ===== AVATAR SYSTEM (shared with app.js) =====
+const STUDENT_AVATARS = [
+    { id: 'avatar-1',  icon: '🦊', bg: 'from-orange-500 to-red-500' },
+    { id: 'avatar-2',  icon: '🐺', bg: 'from-gray-500 to-blue-600' },
+    { id: 'avatar-3',  icon: '🦁', bg: 'from-amber-500 to-yellow-600' },
+    { id: 'avatar-4',  icon: '🐱', bg: 'from-pink-500 to-rose-500' },
+    { id: 'avatar-5',  icon: '🐼', bg: 'from-gray-600 to-gray-800' },
+    { id: 'avatar-6',  icon: '🦉', bg: 'from-amber-700 to-orange-900' },
+    { id: 'avatar-7',  icon: '🐸', bg: 'from-green-500 to-emerald-600' },
+    { id: 'avatar-8',  icon: '🦋', bg: 'from-violet-500 to-purple-600' },
+    { id: 'avatar-9',  icon: '🐧', bg: 'from-sky-500 to-blue-600' },
+    { id: 'avatar-10', icon: '🦄', bg: 'from-pink-400 to-purple-500' },
+    { id: 'avatar-11', icon: '🐲', bg: 'from-red-600 to-orange-500' },
+    { id: 'avatar-12', icon: '🦈', bg: 'from-blue-700 to-cyan-600' },
+    { id: 'avatar-13', icon: '🦅', bg: 'from-yellow-700 to-amber-800' },
+    { id: 'avatar-14', icon: '🐬', bg: 'from-cyan-500 to-teal-500' },
+    { id: 'avatar-15', icon: '🦚', bg: 'from-teal-500 to-emerald-600' },
+    { id: 'avatar-16', icon: '🐉', bg: 'from-indigo-500 to-purple-700' },
+];
+function getStudentAvatarById(id) { return STUDENT_AVATARS.find(a => a.id === id) || STUDENT_AVATARS[0]; }
+function renderStudentAvatar(avatarId, size='md') {
+    const av = getStudentAvatarById(avatarId);
+    const sizes = { sm: 'w-8 h-8 text-base', md: 'w-10 h-10 text-xl', lg: 'w-14 h-14 text-3xl' };
+    const cls = sizes[size] || sizes.md;
+    return `<div class="rounded-full bg-gradient-to-br ${av.bg} ${cls} flex items-center justify-center shadow-lg ring-2 ring-white/10 flex-shrink-0"><span class="drop-shadow">${av.icon}</span></div>`;
+}
 
 let meetingActive  = false;
 let currentMeetingId = null;
@@ -28,14 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
     wireEvents();
     startPolling();
     loadDoubts();
+    initStudentAvatar();
 });
 
 // ===== UTILS =====
 const $ = id => document.getElementById(id);
 const $$ = sel => document.querySelectorAll(sel);
 function toast(msg, type='') {
-    const t = $('toast'); t.textContent = msg; t.className = 'toast show ' + type;
-    setTimeout(() => t.classList.remove('show'), 3000);
+    const t = $('toast'); t.textContent = msg;
+    t.className = 'toast-container fixed left-1/2 -translate-x-1/2 z-[999] transition-all duration-400 px-7 py-3.5 rounded-xl text-sm shadow-[0_10px_30px_rgba(0,0,0,0.4)] bg-[#1a1a38]';
+    if(type==='error') t.classList.add('border','border-red-500/50','text-red-400');
+    else if(type==='success') t.classList.add('border','border-emerald-500/50','text-emerald-400');
+    else t.classList.add('border','border-indigo-500/40','text-white');
+    t.style.bottom = '30px';
+    setTimeout(() => { t.style.bottom = '-100px'; }, 3000);
 }
 function escHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 function fmtDur(s) { if (!s) return '0:00'; return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
@@ -43,9 +77,17 @@ function ts() { return new Date().toISOString().replace(/[:.]/g,'-').slice(0,19)
 
 // ===== WIRE EVENTS =====
 function wireEvents() {
-    $$('.tab-btn').forEach(b => b.onclick = () => {
-        $$('.tab-btn').forEach(x => x.classList.toggle('active', x === b));
-        $$('.tab-pane').forEach(p => p.classList.toggle('active', p.id === b.dataset.tab));
+    $$('[data-tab]').forEach(b => b.onclick = () => {
+        $$('[data-tab]').forEach(x => {
+            const isActive = x === b;
+            x.classList.toggle('tab-active', isActive);
+            x.classList.toggle('text-white', isActive);
+            x.classList.toggle('text-gray-500', !isActive);
+        });
+        $$('.tab-pane').forEach(p => {
+            if(p.id === b.dataset.tab) p.classList.add('active-tab');
+            else p.classList.remove('active-tab');
+        });
         if (b.dataset.tab === 'doubts-tab') loadDoubts();
     });
 
@@ -104,7 +146,7 @@ async function playNextChunk() {
         audio.volume = isSpeakerOn ? 1.0 : 0;
         audio.onplay = () => {
             $('broadcastLabel').textContent = '🔊 Receiving teacher audio…';
-            $('broadcastLabel').style.color = '#2ecc71';
+            $('broadcastLabel').className = 'mt-2.5 text-sm text-emerald-400';
         };
         audio.onended = () => { isPlaying = false; playNextChunk(); };
         audio.onerror = () => { isPlaying = false; playNextChunk(); };
@@ -129,19 +171,17 @@ function updateListenUI(active) {
     const dot = $('recDot'), badge = $('connBadge'), banner = $('listenBanner');
     if (active) {
         dot.classList.add('recording');
-        badge.textContent = '🟢 Live'; badge.style.color = '#2ecc71';
-        banner.innerHTML = '<span style="color:#2ecc71;font-weight:600">🟢 Meeting is live — Listening to teacher</span>';
-        banner.classList.add('live');
+        badge.textContent = '🟢 Live'; badge.className = 'badge badge-success badge-sm ml-2';
+        banner.innerHTML = '<span class="text-emerald-400 font-semibold text-sm">🟢 Meeting is live — Listening to teacher</span>';
         $('broadcastLabel').textContent = '🔊 Listening…';
-        $('broadcastLabel').style.color = '#2ecc71';
+        $('broadcastLabel').className = 'mt-2.5 text-sm text-emerald-400';
     } else {
         dot.classList.remove('recording');
-        badge.textContent = 'Offline'; badge.style.color = '#e63946';
-        banner.innerHTML = '<span class="banner-idle">⏳ Waiting for teacher to start a meeting…</span>';
-        banner.classList.remove('live');
+        badge.textContent = 'Offline'; badge.className = 'badge badge-error badge-sm ml-2';
+        banner.innerHTML = '<span class="text-emerald-400/70 text-sm">⏳ Waiting for teacher to start a meeting…</span>';
         $('timerDisplay').textContent = '00:00:00';
         $('broadcastLabel').textContent = '🔇 No broadcast';
-        $('broadcastLabel').style.color = '#888';
+        $('broadcastLabel').className = 'mt-2.5 text-sm text-gray-500';
     }
 }
 
@@ -149,7 +189,7 @@ function updateListenUI(active) {
 function toggleSpeaker() {
     isSpeakerOn = !isSpeakerOn;
     $('btnSpeakerToggle').querySelector('.ctrl-icon').textContent = isSpeakerOn ? '🔊' : '🔇';
-    $('btnSpeakerToggle').classList.toggle('off', !isSpeakerOn);
+    $('btnSpeakerToggle').classList.toggle('opacity-40', !isSpeakerOn);
     if (isSpeakerOn) playNextChunk();
     toast(isSpeakerOn ? 'Speaker ON' : 'Speaker muted', 'success');
 }
@@ -182,12 +222,7 @@ async function startDoubtRecording() {
         };
 
         doubtProcessor.onStop = (blob) => {
-            // Auto-save to student's local Downloads — no prompt
-            doubtClipCounter++;
-            const localName = `doubt_${studentName}_${ts()}.webm`;
-            autoSaveLocal(blob, localName);
-
-            // Also upload to server
+            // Upload doubt clip to server (no local download - avoids popup)
             uploadDoubtClip(blob);
         };
 
@@ -253,28 +288,49 @@ async function loadDoubts() {
 function renderDoubts(list) {
     const c = $('doubtsList');
     if (!list.length) {
-        c.innerHTML = '<div class="empty-state"><div class="icon">❓</div><p>No doubt clips yet. Record a doubt during a meeting!</p></div>';
+        c.innerHTML = '<div class="text-center py-16 text-gray-500"><div class="text-5xl mb-4">❓</div><p>No doubt clips yet. Record a doubt during a meeting!</p></div>';
         return;
     }
     c.innerHTML = list.map(d => `
-      <div class="recording-item">
-        <div class="recording-info">
-          <div class="rec-name">🎤 ${escHtml(d.fileName)}</div>
-          <div class="rec-meta">
+      <div class="flex items-center bg-white/[0.03] border border-white/5 rounded-xl px-5 py-4 mb-2.5 hover:bg-white/[0.05] transition">
+        <div class="flex-1">
+          <div class="font-semibold text-base mb-1">🎤 ${escHtml(d.fileName)}</div>
+          <div class="text-xs text-gray-500 mb-2">
             ${fmtDur(d.durationSeconds)} · ${d.createdAt}
             ${d.answered
-                ? ' · <span style="color:#2ecc71;font-weight:600">✅ Answered</span>'
-                : ' · <span style="color:#f39c12">⏳ Waiting</span>'}
+                ? ' · <span class="text-emerald-400 font-semibold">✅ Answered</span>'
+                : ' · <span class="text-yellow-500">⏳ Waiting</span>'}
           </div>
-          <audio class="audio-player" controls preload="none" src="/api/student/doubt/${d.id}/play"></audio>
-          ${d.answerNote ? `<div style="margin-top:8px;padding:8px;background:rgba(108,99,255,0.1);border-radius:8px;font-size:14px"><strong>Teacher:</strong> ${escHtml(d.answerNote)}</div>` : ''}
-          ${d.hasAnswerAudio ? `<div style="margin-top:6px"><span style="font-size:13px;color:#6c63ff">🔊 Teacher reply:</span><audio class="audio-player" controls preload="none" src="/api/student/doubt/${d.id}/answer-audio"></audio></div>` : ''}
+          <audio class="w-full h-9 rounded-lg" controls preload="none" src="/api/student/doubt/${d.id}/play"></audio>
+          ${d.answerNote ? `<div class="mt-2 p-2 bg-indigo-500/10 rounded-lg text-sm"><strong>Teacher:</strong> ${escHtml(d.answerNote)}</div>` : ''}
+          ${d.hasAnswerAudio ? `<div class="mt-1.5"><span class="text-xs text-indigo-400">🔊 Teacher reply:</span><audio class="w-full h-9 rounded-lg" controls preload="none" src="/api/student/doubt/${d.id}/answer-audio"></audio></div>` : ''}
         </div>
       </div>`).join('');
 }
 
+// ===== STUDENT AVATAR =====
+function initStudentAvatar() {
+    const container = $('navbarDropdownAvatar');
+    if (container) {
+        const av = getStudentAvatarById(studentAvatar);
+        container.className = `w-8 h-8 rounded-full bg-gradient-to-br ${av.bg} flex items-center justify-center shadow-lg ring-2 ring-white/10 flex-shrink-0`;
+        container.innerHTML = `<span class="text-sm drop-shadow">${av.icon}</span>`;
+    }
+}
+
 // ===== LOGOUT =====
 async function logout() {
-    await fetch('/api/student/logout', { method: 'POST' });
-    window.location.href = '/student/login';
+    // Mark student offline via API
+    await fetch('/api/student/logout', { method: 'POST' }).catch(() => {});
+    // Use Spring Security POST logout with CSRF
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/logout';
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_csrf';
+    csrfInput.value = document.getElementById('csrfToken').value;
+    form.appendChild(csrfInput);
+    document.body.appendChild(form);
+    form.submit();
 }

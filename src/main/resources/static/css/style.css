@@ -1,7 +1,8 @@
 /* ===== RESET & BASE ===== */
 *{margin:0;padding:0;box-sizing:border-box}
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap');
 :root{--bg:#0d0d1a;--bg2:#0a0a15;--surface:rgba(255,255,255,0.02);--border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);--text:#e0e0e0;--text2:#888;--accent:#6c63ff;--accent2:#4a44d4;--danger:#e63946;--success:#2ecc71;--warn:#f39c12;--green:#25d366}
-body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body{font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
 /* Themes */
 body.theme-midnight{--bg:#0b1120;--bg2:#070d18;--accent:#5b8dee;--accent2:#3a6dd4}
@@ -50,7 +51,7 @@ body.theme-forest{--bg:#0c1a0e;--bg2:#081208;--accent:#2ecc71;--accent2:#27ae60}
 .meeting-logo{margin-top:40px}
 .air-logo-wrap{text-align:center}
 .air-logo-icon{font-size:60px;display:block;margin-bottom:8px;opacity:.5}
-.air-logo-text{font-size:42px;font-weight:bold;background:linear-gradient(135deg,#00b4d8,#ff6b35,#e63946);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:.5}
+.air-logo-text{font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;letter-spacing:6px;text-transform:lowercase;background:linear-gradient(135deg,#00b4d8,#ff6b35,#e63946);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:.5}
 .students-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;width:100%;max-width:1000px}
 .student-meeting-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;text-align:center;transition:.3s}
 .student-meeting-card:hover{border-color:rgba(100,99,255,0.4)}

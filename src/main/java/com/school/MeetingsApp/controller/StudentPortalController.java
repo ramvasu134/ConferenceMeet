@@ -2,9 +2,11 @@ package com.school.MeetingsApp.controller;
 
 import com.school.MeetingsApp.model.*;
 import com.school.MeetingsApp.repository.MeetingRepository;
+import com.school.MeetingsApp.repository.StudentRepository;
 import com.school.MeetingsApp.service.BroadcastService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.*;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -19,30 +21,60 @@ public class StudentPortalController {
 
     private final BroadcastService broadcastService;
     private final MeetingRepository meetingRepository;
+    private final StudentRepository studentRepository;
 
-    public StudentPortalController(BroadcastService broadcastService, MeetingRepository meetingRepository) {
+    public StudentPortalController(BroadcastService broadcastService, MeetingRepository meetingRepository,
+                                    StudentRepository studentRepository) {
         this.broadcastService = broadcastService;
         this.meetingRepository = meetingRepository;
+        this.studentRepository = studentRepository;
     }
 
     // ============ PAGES ============
 
     @GetMapping("/student/login")
     public String studentLoginPage() {
-        return "student-login";
+        // Redirect to unified login page
+        return "redirect:/login";
     }
 
     @GetMapping("/student/dashboard")
-    public String studentDashboard(HttpSession session, Model model) {
+    public String studentDashboard(Authentication auth, HttpSession session, Model model) {
+        if (auth == null) return "redirect:/login";
+
+        String username = auth.getName();
+
+        // Check if session already has studentId (set by success handler)
         Long studentId = (Long) session.getAttribute("studentId");
-        if (studentId == null) return "redirect:/student/login";
-        model.addAttribute("studentId", studentId);
-        model.addAttribute("studentName", session.getAttribute("studentName"));
-        model.addAttribute("teacherName", session.getAttribute("teacherName"));
+        if (studentId != null) {
+            model.addAttribute("studentId", studentId);
+            model.addAttribute("studentName", session.getAttribute("studentName"));
+            model.addAttribute("teacherName", session.getAttribute("teacherName"));
+            model.addAttribute("studentAvatar", session.getAttribute("studentAvatar") != null ? session.getAttribute("studentAvatar") : "avatar-1");
+            return "student-dashboard";
+        }
+
+        // Fallback: look up student by username
+        Optional<Student> studentOpt = studentRepository.findByUsernameWithTeacher(username);
+        if (studentOpt.isEmpty()) return "redirect:/login";
+
+        Student s = studentOpt.get();
+        session.setAttribute("studentId", s.getId());
+        session.setAttribute("studentName", s.getName());
+        session.setAttribute("studentUsername", s.getUsername());
+        session.setAttribute("teacherName", s.getTeacher().getName());
+        session.setAttribute("teacherId", s.getTeacher().getId());
+        session.setAttribute("studentAvatar", s.getAvatar() != null ? s.getAvatar() : "avatar-1");
+        broadcastService.markStudentOnline(s.getId());
+
+        model.addAttribute("studentId", s.getId());
+        model.addAttribute("studentName", s.getName());
+        model.addAttribute("teacherName", s.getTeacher().getName());
+        model.addAttribute("studentAvatar", s.getAvatar() != null ? s.getAvatar() : "avatar-1");
         return "student-dashboard";
     }
 
-    // ============ AUTH API ============
+    // ============ AUTH API (kept for backward compatibility) ============
 
     @PostMapping("/api/student/login")
     @ResponseBody
@@ -61,13 +93,15 @@ public class StudentPortalController {
         session.setAttribute("studentUsername", s.getUsername());
         session.setAttribute("teacherName", s.getTeacher().getName());
         session.setAttribute("teacherId", s.getTeacher().getId());
+        session.setAttribute("studentAvatar", s.getAvatar() != null ? s.getAvatar() : "avatar-1");
 
         broadcastService.markStudentOnline(s.getId());
 
         return ResponseEntity.ok(Map.of(
                 "studentId", s.getId(),
                 "name", s.getName(),
-                "teacherName", s.getTeacher().getName()
+                "teacherName", s.getTeacher().getName(),
+                "avatar", s.getAvatar() != null ? s.getAvatar() : "avatar-1"
         ));
     }
 
@@ -89,10 +123,10 @@ public class StudentPortalController {
         Long studentId = (Long) session.getAttribute("studentId");
         if (studentId == null) return ResponseEntity.status(401).body(Map.of("error", "Not logged in"));
 
-        Long teacherId = (Long) session.getAttribute("teacherId");
-        // Find active meeting for this teacher
+        // Find ANY active meeting (not just from student's teacher)
+        // This allows students to hear any teacher/manager who starts a meeting
         Optional<Meeting> activeMeeting = meetingRepository.findAll().stream()
-                .filter(m -> m.isActive() && m.getTeacher().getId().equals(teacherId))
+                .filter(Meeting::isActive)
                 .findFirst();
 
         if (activeMeeting.isEmpty()) {

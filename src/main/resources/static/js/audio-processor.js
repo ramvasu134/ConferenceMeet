@@ -1,5 +1,5 @@
 /* ============================================================
-   Air – AudioProcessor v2
+   mtng – AudioProcessor v2
    Ultra-aggressive voice clarity pipeline for noisy environments
    HighPass → multi-band noise cut → NoiseGate → Compressor →
    Limiter → Gain → De-esser → output

@@ -1,82 +1,127 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org" lang="en" data-theme="night">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Air - Student Dashboard</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>mtng - Student Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{fontFamily:{brand:['Orbitron','sans-serif'],body:['Inter','Segoe UI','sans-serif']}}}}</script>
+    <style>
+        @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+        @keyframes mic-pulse{0%,100%{box-shadow:0 0 20px rgba(192,57,43,0.4)}50%{box-shadow:0 0 40px rgba(231,76,60,0.7)}}
+        .rec-dot.recording{background:#e63946!important;animation:pulse-dot 1s infinite}
+        .mic-btn.active{animation:mic-pulse 1.5s infinite}
+        .audio-visualiser{display:none}.audio-visualiser.active{display:block}
+        .student-speaking-indicator{display:none}.student-speaking-indicator.active{display:flex}
+        .speaking-indicator-pulse{animation:pulse-dot 1s infinite}
+        /* Tab pane visibility */
+        .tab-pane { display: none !important; }
+        .tab-pane.active-tab { display: block !important; }
+    </style>
 </head>
-<body>
+<body class="bg-[#0d0d1a] text-gray-200 min-h-screen overflow-x-hidden font-body">
     <input type="hidden" id="studentId"   th:value="${studentId}">
     <input type="hidden" id="studentName" th:value="${studentName}">
     <input type="hidden" id="teacherName" th:value="${teacherName}">
+    <input type="hidden" id="studentAvatar" th:value="${studentAvatar}">
+    <input type="hidden" id="csrfToken" th:value="${_csrf.token}">
 
     <!-- ===== TOP BAR ===== -->
-    <div class="top-bar">
-        <div class="teacher-name" th:text="${studentName}">Student</div>
-        <div class="meeting-timer" id="meetingTimer">
-            <span class="rec-dot" id="recDot"></span>
-            <span id="timerDisplay">00:00:00</span>
-            <span class="connection-badge" id="connBadge">Connecting…</span>
+    <div class="navbar bg-[#0a0a15] border-b border-white/5 sticky top-0 z-50 px-5">
+        <div class="navbar-start flex items-center gap-3">
+            <span class="font-brand text-lg font-black tracking-[3px] lowercase bg-gradient-to-r from-cyan-400 via-orange-400 to-red-500 bg-clip-text text-transparent">mtng</span>
         </div>
-        <div class="top-right">
-            <div class="participant-count" id="teacherTag">
-                Teacher: <strong th:text="${teacherName}">—</strong>
+        <div class="navbar-center">
+            <div class="flex items-center gap-2 bg-white/5 px-4 py-1.5 rounded-full border border-white/10" id="meetingTimer">
+                <span class="w-3 h-3 rounded-full bg-gray-600 inline-block flex-shrink-0" id="recDot"></span>
+                <span id="timerDisplay" class="font-mono font-semibold text-white min-w-[72px]">00:00:00</span>
+                <span class="badge badge-ghost badge-sm text-gray-400 ml-2" id="connBadge">Connecting…</span>
             </div>
-            <button class="btn-settings" id="btnLogout" title="Logout">🚪</button>
+        </div>
+        <div class="navbar-end gap-3">
+            <div class="badge badge-outline badge-lg" id="teacherTag">
+                Teacher: <strong class="ml-1" th:text="${teacherName}">—</strong>
+            </div>
+            <!-- Username dropdown with logout -->
+            <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-ghost gap-2 normal-case text-white hover:bg-white/10">
+                    <div id="navbarDropdownAvatar" class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-orange-500 flex items-center justify-center text-sm font-bold text-white"></div>
+                    <span class="text-sm font-semibold hidden sm:inline" th:text="${studentName}">Student</span>
+                    <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </label>
+                <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-[#1a1a2e] border border-white/10 rounded-xl w-52 mt-2 z-[100]">
+                    <li class="pointer-events-none">
+                        <span class="text-gray-400 text-xs uppercase tracking-wider font-semibold">Signed in as</span>
+                    </li>
+                    <li class="pointer-events-none">
+                        <span class="text-white font-bold" th:text="${studentName}">Student</span>
+                    </li>
+                    <li class="my-1"><hr class="border-white/10"/></li>
+                    <li>
+                        <button class="text-red-400 hover:bg-red-500/20 hover:text-red-300 flex items-center gap-2" id="btnLogout">
+                            🚪 Logout
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 
     <!-- ===== TAB NAV ===== -->
-    <div class="tab-nav">
-        <button class="tab-btn active" data-tab="listen-tab">🔊 Listen</button>
-        <button class="tab-btn" data-tab="doubts-tab">❓ My Doubts</button>
+    <div role="tablist" class="tabs tabs-bordered bg-white/[0.02] border-b border-white/5">
+        <button class="tab tab-active text-white tab-lg flex-1" data-tab="listen-tab">🔊 Listen</button>
+        <button class="tab tab-lg flex-1 text-gray-500" data-tab="doubts-tab">❓ My Doubts</button>
     </div>
 
     <div class="tab-content">
 
         <!-- ============ LISTEN TAB ============ -->
-        <div class="tab-pane active" id="listen-tab">
-            <div class="meeting-area">
+        <div class="tab-pane active-tab" id="listen-tab">
+            <div class="flex flex-col" style="height:calc(100vh - 120px)">
                 <!-- Status banner -->
-                <div class="meeting-banner" id="listenBanner">
-                    <span class="banner-idle" id="bannerText">⏳ Waiting for teacher to start a meeting…</span>
+                <div class="mx-4 mt-4 p-5 rounded-xl border bg-gradient-to-r from-emerald-900/30 to-emerald-900/10 border-emerald-500/20 transition-all" id="listenBanner">
+                    <span class="text-emerald-400/70 text-sm" id="bannerText">⏳ Waiting for teacher to start a meeting…</span>
                 </div>
 
                 <!-- Teacher broadcast visualiser -->
-                <div class="listen-body">
-                    <div class="broadcast-vis-wrap" id="broadcastVisWrap">
-                        <canvas id="broadcastCanvas" width="700" height="80"></canvas>
-                        <div class="broadcast-label" id="broadcastLabel">🔇 No broadcast</div>
+                <div class="flex-1 flex flex-col items-center justify-center p-5" id="listenBody">
+                    <div class="w-full max-w-[700px] text-center" id="broadcastVisWrap">
+                        <canvas id="broadcastCanvas" width="700" height="80" class="bg-black/20 rounded-lg w-full h-20"></canvas>
+                        <div class="mt-2.5 text-sm text-gray-500" id="broadcastLabel">🔇 No broadcast</div>
                     </div>
 
-                    <div class="meeting-logo">
-                        <div class="air-logo-wrap">
-                            <span class="air-logo-icon">🎓</span>
-                            <span class="air-logo-text">AiR</span>
-                        </div>
+                    <div class="mt-10 text-center">
+                        <span class="text-6xl block mb-2 opacity-50">🎙️</span>
+                        <span class="font-brand text-4xl font-black tracking-[6px] lowercase bg-gradient-to-r from-cyan-400 via-orange-400 to-red-500 bg-clip-text text-transparent opacity-50">mtng</span>
                     </div>
                 </div>
 
                 <!-- Student mic visualiser (when asking doubt) -->
-                <div class="student-speaking-indicator" id="speakingIndicator">
-                    <span class="pulse-dot"></span>
+                <div class="student-speaking-indicator items-center gap-2 px-4 py-2 mx-4 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-sm text-emerald-400 font-semibold" id="speakingIndicator">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 speaking-indicator-pulse"></span>
                     <span>You are speaking — doubt is being recorded</span>
                 </div>
-                <div class="audio-visualiser" id="doubtVisualiser">
-                    <canvas id="doubtCanvas" width="700" height="50"></canvas>
+                <div class="audio-visualiser h-[50px] bg-black/20 mx-4 rounded-lg overflow-hidden" id="doubtVisualiser">
+                    <canvas id="doubtCanvas" width="700" height="50" class="w-full h-full"></canvas>
                 </div>
 
                 <!-- Controls bar -->
-                <div class="meeting-controls-bar">
-                    <button class="control-btn speaker-toggle" id="btnSpeakerToggle" title="Mute/Unmute playback">
-                        <span class="ctrl-icon">🔊</span>
+                <div class="flex items-center justify-center gap-5 p-5 bg-black/30 border-t border-white/5">
+                    <!-- Speaker Toggle -->
+                    <button class="btn btn-circle btn-ghost bg-white/5 border border-white/15 text-xl" id="btnSpeakerToggle" title="Mute/Unmute playback">
+                        <span class="ctrl-icon pointer-events-none">🔊</span>
                     </button>
-                    <button class="mic-btn" id="btnAskDoubt" title="Hold or click to ask a doubt">
-                        <span class="ctrl-icon">🎤</span>
+                    <!-- Mic (Ask Doubt) -->
+                    <button class="btn btn-circle btn-lg bg-gradient-to-br from-red-900 to-red-600 border-none text-2xl shadow-[0_0_20px_rgba(192,57,43,0.4)] hover:scale-105 hover:shadow-[0_0_30px_rgba(192,57,43,0.6)] mic-btn" id="btnAskDoubt" title="Hold or click to ask a doubt">
+                        <span class="ctrl-icon pointer-events-none">🎤</span>
                     </button>
-                    <button class="control-btn send-btn" id="btnSendDoubt" title="Stop &amp; send doubt recording">
-                        <span class="ctrl-icon">📤</span>
+                    <!-- Send Doubt -->
+                    <button class="btn btn-circle btn-ghost bg-emerald-500/20 border border-emerald-500/30 text-xl hover:bg-emerald-500/40" id="btnSendDoubt" title="Stop & send doubt recording">
+                        <span class="ctrl-icon pointer-events-none">📤</span>
                     </button>
                 </div>
             </div>
@@ -84,20 +129,20 @@
 
         <!-- ============ MY DOUBTS TAB ============ -->
         <div class="tab-pane" id="doubts-tab">
-            <div class="recordings-container">
-                <div class="recordings-toolbar">
-                    <h3>❓ My Doubt Clips</h3>
-                    <button class="btn-refresh" id="btnRefreshDoubts">Refresh</button>
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="text-xl font-semibold">❓ My Doubt Clips</h3>
+                    <button class="btn btn-sm btn-ghost bg-white/5 border border-white/15" id="btnRefreshDoubts">Refresh</button>
                 </div>
-                <div class="recordings-list" id="doubtsList">
-                    <div class="loading-spinner">Loading doubts…</div>
+                <div id="doubtsList">
+                    <div class="text-center text-gray-500 py-10">Loading doubts…</div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Toast -->
-    <div class="toast" id="toast"></div>
+    <div class="fixed bottom-[-100px] left-1/2 -translate-x-1/2 z-[999] transition-all duration-400 px-7 py-3.5 rounded-xl text-sm shadow-[0_10px_30px_rgba(0,0,0,0.4)] bg-[#1a1a38] border border-indigo-500/40 text-white whitespace-nowrap" id="toast"></div>
 
     <script src="/js/audio-processor.js"></script>
     <script src="/js/student.js"></script>

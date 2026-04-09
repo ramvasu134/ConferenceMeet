@@ -26,7 +26,8 @@ public class SettingsApiController {
                 "username", teacher.getUsername(),
                 "theme", teacher.getTheme(),
                 "speakDetectionType", teacher.getSpeakDetectionType(),
-                "fullMeetingRecording", teacher.isFullMeetingRecording()
+                "fullMeetingRecording", teacher.isFullMeetingRecording(),
+                "avatar", teacher.getAvatar() != null ? teacher.getAvatar() : "avatar-1"
         ));
     }
 
@@ -47,6 +48,16 @@ public class SettingsApiController {
         boolean fullMeetingRecording = (boolean) body.getOrDefault("fullMeetingRecording", false);
         teacherService.updateSettings(auth.getName(), theme, speakDetectionType, fullMeetingRecording);
         return ResponseEntity.ok(Map.of("message", "Settings updated"));
+    }
+
+    @PostMapping("/avatar")
+    public ResponseEntity<?> updateAvatar(Authentication auth, @RequestBody Map<String, String> body) {
+        String avatar = body.get("avatar");
+        if (avatar == null || avatar.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Avatar is required"));
+        }
+        teacherService.updateAvatar(auth.getName(), avatar);
+        return ResponseEntity.ok(Map.of("message", "Avatar updated", "avatar", avatar));
     }
 
     @PostMapping("/toggle-recording")

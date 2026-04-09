@@ -1,107 +1,185 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org" lang="en" data-theme="night">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Air - Teacher Dashboard</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>mtng - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{fontFamily:{brand:['Orbitron','sans-serif'],body:['Inter','Segoe UI','sans-serif']}}}}</script>
+    <style>
+        /* Minimal custom animations that Tailwind can't handle inline */
+        @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+        @keyframes mic-pulse{0%,100%{box-shadow:0 0 20px rgba(192,57,43,0.4)}50%{box-shadow:0 0 40px rgba(231,76,60,0.7)}}
+        @keyframes speakPulse{0%,100%{opacity:1}50%{opacity:.6}}
+        .rec-dot.recording{background:#e63946!important;animation:pulse-dot 1s infinite}
+        .mic-btn.active{animation:mic-pulse 1.5s infinite}
+        .audio-visualiser{display:none}.audio-visualiser.active{display:block}
+        .teacher-speaking-indicator{display:none}.teacher-speaking-indicator.active{display:flex}
+        .speaking-avatar{animation:speakPulse 1.2s infinite}
+        .toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);z-index:999;transition:bottom .4s ease;white-space:nowrap}
+        .toast.show{bottom:30px}
+        /* Tab pane visibility — explicit rules so we don't depend on Tailwind CDN */
+        .tab-pane { display: none !important; }
+        .tab-pane.active-tab { display: block !important; }
+        /* Theme overrides */
+        body.theme-midnight{--b1:#0b1120;--b2:#070d18}
+        body.theme-ocean{--b1:#0a1628;--b2:#061020}
+        body.theme-forest{--b1:#0c1a0e;--b2:#081208}
+    </style>
 </head>
-<body>
+<body class="bg-[#0d0d1a] text-gray-200 min-h-screen overflow-x-hidden font-body">
     <!-- Hidden fields for server data -->
     <input type="hidden" id="teacherName" th:value="${teacher.name}">
     <input type="hidden" id="teacherUsername" th:value="${teacher.username}">
+    <input type="hidden" id="teacherRole" th:value="${teacher.role}">
+    <input type="hidden" id="isAdmin" th:value="${isAdmin}">
     <input type="hidden" id="csrfToken" th:value="${_csrf.token}">
     <input type="hidden" id="csrfHeader" th:value="${_csrf.headerName}">
+    <input type="hidden" id="teacherAvatar" th:value="${teacherAvatar}">
 
-    <!-- Top Bar -->
-    <div class="top-bar">
-        <div class="teacher-name" th:text="${teacher.name}">VK2</div>
-        <div class="meeting-timer" id="meetingTimer">
-            <span class="rec-dot" id="recDot"></span>
-            <span id="timerDisplay">00:00:00</span>
-            <button class="timer-btn" id="btnScreenShare" title="Screen Share">🖥️</button>
-            <button class="timer-btn" id="btnSpeaker" title="Toggle Speaker">🔊</button>
-            <button class="timer-btn" id="btnMic" title="Toggle Mic">🎤</button>
-            <button class="timer-btn" id="btnPauseResume" title="Pause / Resume">⏸️</button>
-            <button class="timer-btn stop-btn" id="btnStopMeeting" title="Stop Meeting">⏹️</button>
+    <!-- ===== TOP BAR ===== -->
+    <div class="navbar bg-[#0a0a15] border-b border-white/5 sticky top-0 z-50 px-5 gap-3 flex-wrap md:flex-nowrap">
+        <!-- Brand + Teacher Name -->
+        <div class="navbar-start w-auto flex items-center gap-3">
+            <span class="font-brand text-lg font-black tracking-[3px] lowercase bg-gradient-to-r from-cyan-400 via-orange-400 to-red-500 bg-clip-text text-transparent hidden md:inline">mtng</span>
+            <span class="hidden md:inline text-white/20">|</span>
+            <div class="cursor-pointer hover:scale-110 transition-transform" id="navbarAvatar" title="Change Avatar"></div>
+            <span class="text-2xl font-bold text-white" th:text="${teacher.name}">VK2</span>
+            <span th:if="${isAdmin}" class="badge badge-sm bg-gradient-to-r from-amber-500 to-orange-600 border-none text-white font-bold">ADMIN</span>
+            <span th:unless="${isAdmin}" class="badge badge-sm bg-gradient-to-r from-blue-500 to-cyan-600 border-none text-white font-bold">MANAGER</span>
         </div>
-        <div class="top-right">
-            <div class="participant-count">
+
+        <!-- Meeting Timer -->
+        <div class="navbar-center order-3 md:order-none w-full md:w-auto justify-center">
+            <div class="flex items-center gap-2 bg-white/5 px-4 py-1.5 rounded-full border border-white/10" id="meetingTimer">
+                <span class="w-3 h-3 rounded-full bg-gray-600 inline-block flex-shrink-0" id="recDot"></span>
+                <span id="timerDisplay" class="font-mono font-semibold text-white min-w-[72px]">00:00:00</span>
+                <button class="btn btn-xs btn-ghost" id="btnScreenShare" title="Screen Share">🖥️</button>
+                <button class="btn btn-xs btn-ghost" id="btnSpeaker" title="Toggle Speaker">🔊</button>
+                <button class="btn btn-xs btn-ghost" id="btnMic" title="Toggle Mic">🎤</button>
+                <button class="btn btn-xs btn-ghost" id="btnPauseResume" title="Pause / Resume">⏸️</button>
+                <button class="btn btn-xs btn-error btn-outline" id="btnStopMeeting" title="Stop Meeting">⏹️</button>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="navbar-end w-auto gap-3">
+            <div class="badge badge-outline badge-lg font-semibold">
                 <span id="meetingCount">0</span> M / <span id="onlineCount">0</span> O
             </div>
-            <button class="btn-start-meeting" id="btnStartMeeting">Start Meeting</button>
-            <button class="btn-settings" id="btnSettings">⚙️</button>
+            <button class="btn btn-sm bg-gradient-to-r from-indigo-900 to-indigo-700 border-indigo-400/40 text-white font-semibold hover:from-indigo-700 hover:to-indigo-500" id="btnStartMeeting">Start Meeting</button>
+            <button class="btn btn-square btn-ghost text-xl hover:rotate-45 transition-transform" id="btnSettings">⚙️</button>
+            <!-- Username Dropdown with Logout -->
+            <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-ghost gap-2 normal-case text-white hover:bg-white/10">
+                    <span class="text-sm font-semibold hidden sm:inline" th:text="${teacher.name}">User</span>
+                    <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </label>
+                <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-[#1a1a2e] border border-white/10 rounded-xl w-52 mt-2 z-[100]">
+                    <li class="pointer-events-none">
+                        <span class="text-gray-400 text-xs uppercase tracking-wider font-semibold">Signed in as</span>
+                    </li>
+                    <li class="pointer-events-none">
+                        <div class="flex items-center gap-2">
+                            <div id="dropdownAvatar" class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-orange-500 flex items-center justify-center text-sm font-bold text-white"></div>
+                            <div>
+                                <span class="text-white font-bold" th:text="${teacher.name}">User</span>
+                                <span th:if="${isAdmin}" class="badge badge-xs bg-amber-500 border-none text-white ml-1">ADMIN</span>
+                                <span th:unless="${isAdmin}" class="badge badge-xs bg-blue-500 border-none text-white ml-1">MANAGER</span>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="my-1"><hr class="border-white/10"/></li>
+                    <li>
+                        <button class="text-red-400 hover:bg-red-500/20 hover:text-red-300 flex items-center gap-2" id="navLogout">
+                            🚪 Logout
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <!-- Teacher VAD Speaking Indicator (shows when teacher is speaking) -->
-    <div class="teacher-speaking-indicator" id="teacherSpeakingIndicator">
-        <span class="pulse-dot"></span>
-        <span class="tsi-label">🗣️ You are speaking — broadcasting live</span>
-        <div class="vad-level" id="vadLevelBar"><div class="vad-level-fill" id="vadLevelFill"></div></div>
+    <!-- Teacher VAD Speaking Indicator -->
+    <div class="teacher-speaking-indicator items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-emerald-500/10 to-emerald-500/[0.03] border-b border-emerald-500/25 text-sm text-emerald-400 font-semibold" id="teacherSpeakingIndicator">
+        <span class="w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" style="animation:pulse-dot 1s infinite"></span>
+        <span class="whitespace-nowrap">🗣️ You are speaking — broadcasting live</span>
+        <div class="h-2 rounded bg-emerald-500/15 flex-1 max-w-[200px] overflow-hidden border border-emerald-500/20" id="vadLevelBar">
+            <div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded transition-[width] duration-[120ms]" id="vadLevelFill" style="width:0%"></div>
+        </div>
     </div>
 
-    <!-- Speaking Students Indicator (shows who is talking) -->
-    <div class="speaking-strip" id="speakingStrip" style="display:none">
-        <span class="speaking-label">🎤 Speaking:</span>
-        <div class="speaking-avatars" id="speakingAvatars"></div>
+    <!-- Speaking Students Strip -->
+    <div class="flex items-center gap-2.5 px-5 py-1.5 bg-emerald-500/[0.08] border-b border-emerald-500/20 overflow-x-auto" id="speakingStrip" style="display:none">
+        <span class="speaking-label text-xs font-semibold text-emerald-400 whitespace-nowrap">🎤 Speaking:</span>
+        <div class="flex gap-2 flex-nowrap" id="speakingAvatars"></div>
     </div>
 
-    <!-- Tab Navigation -->
-    <div class="tab-nav">
-        <button class="tab-btn active" data-tab="meeting-controls">🎤 Meeting Controls</button>
-        <button class="tab-btn" data-tab="chat">💬 Chat</button>
-        <button class="tab-btn" data-tab="students-list">👥 Students List</button>
-        <button class="tab-btn" data-tab="create-student">➕ Create Student</button>
-        <button class="tab-btn" data-tab="recordings">🔴 Recordings</button>
+    <!-- ===== TAB NAVIGATION ===== -->
+    <div role="tablist" class="tabs tabs-bordered bg-white/[0.02] border-b border-white/5 overflow-x-auto">
+        <button class="tab tab-active text-white tab-lg flex-1 whitespace-nowrap" data-tab="meeting-controls">🎤 Meeting Controls</button>
+        <button class="tab tab-lg flex-1 text-gray-500 whitespace-nowrap" data-tab="chat">💬 Chat</button>
+        <button class="tab tab-lg flex-1 text-gray-500 whitespace-nowrap" data-tab="students-list">👥 Students List</button>
+        <button class="tab tab-lg flex-1 text-gray-500 whitespace-nowrap" data-tab="create-student">➕ Create Student</button>
+        <button th:if="${isAdmin}" class="tab tab-lg flex-1 text-gray-500 whitespace-nowrap" data-tab="managers">👔 Managers</button>
+        <button class="tab tab-lg flex-1 text-gray-500 whitespace-nowrap" data-tab="recordings">🔴 Recordings</button>
     </div>
 
     <!-- ==================== TAB CONTENT ==================== -->
-    <div class="tab-content">
+    <div class="tab-panels">
 
         <!-- ===== Meeting Controls Tab ===== -->
-        <div class="tab-pane active" id="meeting-controls">
-            <div class="meeting-area">
-                <div class="meeting-banner" id="meetingBanner">
-                    <span class="banner-idle">Press <strong>Start Meeting</strong> to begin a session</span>
+        <div class="tab-pane active-tab" id="meeting-controls">
+            <div class="flex flex-col" style="height:calc(100vh - 120px)">
+                <!-- Meeting Banner -->
+                <div class="mx-4 mt-4 p-5 rounded-xl border bg-gradient-to-r from-emerald-900/30 to-emerald-900/10 border-emerald-500/20 min-h-[60px] transition-all" id="meetingBanner">
+                    <span class="text-emerald-400/70 text-sm">Press <strong>Start Meeting</strong> to begin a session</span>
                 </div>
-                <div class="meeting-body" id="meetingBody">
-                    <div class="no-students" id="noStudentsMsg">
+
+                <!-- Meeting Body -->
+                <div class="flex-1 flex flex-col items-center justify-center p-5" id="meetingBody">
+                    <div class="text-center text-gray-500 text-lg" id="noStudentsMsg">
                         <p><strong>No students in meeting yet</strong></p>
                     </div>
-                    <div class="students-grid" id="meetingStudentsGrid"></div>
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 w-full max-w-[1000px]" id="meetingStudentsGrid"></div>
 
                     <!-- ===== INCOMING DOUBTS PANEL ===== -->
-                    <div class="doubts-panel" id="doubtsPanel">
-                        <div class="doubts-panel-header">
-                            <h4>❓ Student Doubts <span class="doubt-count" id="doubtCount">(0)</span></h4>
-                            <button class="btn-refresh" id="btnRefreshDoubtsPanel" style="padding:4px 12px;font-size:12px">Refresh</button>
+                    <div class="w-full max-w-[1000px] mt-5" id="doubtsPanel">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <h4 class="text-base font-semibold">❓ Student Doubts <span class="text-indigo-400 font-normal" id="doubtCount">(0)</span></h4>
+                            <button class="btn btn-xs btn-ghost bg-white/5 border border-white/15" id="btnRefreshDoubtsPanel">Refresh</button>
                         </div>
-                        <div class="doubts-panel-list" id="doubtsPanelList">
-                            <div class="empty-state" style="padding:20px"><p>No doubts yet</p></div>
+                        <div class="max-h-[300px] overflow-y-auto" id="doubtsPanelList">
+                            <div class="text-center py-5 text-gray-500"><p>No doubts yet</p></div>
                         </div>
                     </div>
 
-                    <div class="meeting-logo">
-                        <div class="air-logo-wrap">
-                            <span class="air-logo-icon">🎓</span>
-                            <span class="air-logo-text">AiR</span>
-                        </div>
+                    <!-- Logo -->
+                    <div class="mt-10 text-center">
+                        <span class="text-6xl block mb-2 opacity-50">🎙️</span>
+                        <span class="font-brand text-4xl font-black tracking-[6px] lowercase bg-gradient-to-r from-cyan-400 via-orange-400 to-red-500 bg-clip-text text-transparent opacity-50">mtng</span>
                     </div>
                 </div>
-                <!-- Audio visualiser bar (teacher broadcast) -->
-                <div class="audio-visualiser" id="audioVisualiser">
-                    <canvas id="audioCanvas" width="800" height="60"></canvas>
+
+                <!-- Audio visualiser bar -->
+                <div class="audio-visualiser h-[60px] bg-black/20 mx-4 rounded-lg overflow-hidden" id="audioVisualiser">
+                    <canvas id="audioCanvas" width="800" height="60" class="w-full h-full"></canvas>
                 </div>
-                <div class="meeting-controls-bar">
-                    <button class="control-btn speaker-toggle" id="btnSpeakerToggle" title="Toggle Speaker">
-                        <span class="ctrl-icon">🔊</span>
+
+                <!-- Meeting Controls Bar -->
+                <div class="flex items-center justify-center gap-5 p-5 bg-black/30 border-t border-white/5">
+                    <button class="btn btn-circle btn-ghost bg-white/5 border border-white/15 text-xl" id="btnSpeakerToggle" title="Toggle Speaker">
+                        <span class="ctrl-icon pointer-events-none">🔊</span>
                     </button>
-                    <button class="mic-btn" id="btnMicToggle" title="Broadcast / Record">
-                        <span class="ctrl-icon">🎤</span>
+                    <button class="btn btn-circle btn-lg bg-gradient-to-br from-red-900 to-red-600 border-none text-2xl shadow-[0_0_20px_rgba(192,57,43,0.4)] hover:scale-105 hover:shadow-[0_0_30px_rgba(192,57,43,0.6)] mic-btn" id="btnMicToggle" title="Broadcast / Record">
+                        <span class="ctrl-icon pointer-events-none">🎤</span>
                     </button>
-                    <button class="control-btn send-btn" id="btnSendAudio" title="Stop &amp; send broadcast chunk">
-                        <span class="ctrl-icon">📤</span>
+                    <button class="btn btn-circle btn-ghost bg-emerald-500/20 border border-emerald-500/30 text-xl hover:bg-emerald-500/40" id="btnSendAudio" title="Stop &amp; send broadcast chunk">
+                        <span class="ctrl-icon pointer-events-none">📤</span>
                     </button>
                 </div>
             </div>
@@ -109,253 +187,399 @@
 
         <!-- ===== Chat Tab ===== -->
         <div class="tab-pane" id="chat">
-            <div class="chat-container">
-                <div class="chat-messages" id="chatMessages">
-                    <div class="no-chat">No messages yet. Start a meeting and begin chatting!</div>
+            <div class="flex flex-col" style="height:calc(100vh - 120px)">
+                <div class="flex-1 p-5 overflow-y-auto" id="chatMessages">
+                    <div class="text-center text-gray-600 py-10">No messages yet. Start a meeting and begin chatting!</div>
                 </div>
-                <div class="chat-input-area">
-                    <input type="text" id="chatInput" placeholder="Type a message…" autocomplete="off">
-                    <button class="btn-send-chat" id="btnSendChat">Send</button>
+                <div class="flex gap-2.5 p-4 bg-black/30 border-t border-white/5">
+                    <input type="text" id="chatInput" placeholder="Type a message…" autocomplete="off"
+                           class="input input-bordered flex-1 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400"/>
+                    <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-indigo-700 border-none font-semibold" id="btnSendChat">Send</button>
                 </div>
             </div>
         </div>
 
         <!-- ===== Students List Tab ===== -->
         <div class="tab-pane" id="students-list">
-            <div class="students-toolbar">
-                <button class="btn-refresh" id="btnRefreshStudents">Refresh</button>
-                <input type="text" id="searchStudents" placeholder="Search students…" autocomplete="off">
+            <div class="flex gap-3 p-4 items-center flex-wrap">
+                <button class="btn btn-sm btn-ghost bg-white/5 border border-white/15" id="btnRefreshStudents">Refresh</button>
+                <input type="text" id="searchStudents" placeholder="Search students…" autocomplete="off"
+                       class="input input-bordered input-sm bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400 w-72"/>
             </div>
-            <div class="students-container" id="studentsList">
-                <div class="loading-spinner">Loading students…</div>
+            <div class="px-5 pb-5" id="studentsList">
+                <div class="text-center text-gray-500 py-10">Loading students…</div>
             </div>
         </div>
 
         <!-- ===== Create Student Tab ===== -->
         <div class="tab-pane" id="create-student">
-            <div class="create-student-form">
-                <div class="form-group">
-                    <label class="form-label">Student Name</label>
-                    <input type="text" id="studentName" placeholder="Enter student name" class="form-input">
+            <div class="max-w-3xl mx-auto p-7">
+                <!-- Student Name -->
+                <div class="form-control mb-5">
+                    <label class="label"><span class="label-text font-semibold text-gray-300">Student Name</span></label>
+                    <input type="text" id="studentName" placeholder="Enter student name"
+                           class="input input-bordered bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400 focus:shadow-[0_0_8px_rgba(108,99,255,0.15)]"/>
                 </div>
-                <div class="form-row">
-                    <div class="form-group half">
-                        <label class="form-label">Username</label>
-                        <input type="text" id="studentUsername" placeholder="Enter student username" class="form-input">
+                <!-- Username & Password -->
+                <div class="flex gap-5 flex-col md:flex-row mb-5">
+                    <div class="form-control flex-1">
+                        <label class="label"><span class="label-text font-semibold text-gray-300">Username</span></label>
+                        <input type="text" id="studentUsername" placeholder="Enter student username"
+                               class="input input-bordered bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400"/>
                     </div>
-                    <div class="form-group half">
-                        <label class="form-label">Password</label>
-                        <div class="password-wrapper">
-                            <input type="password" id="studentPassword" placeholder="Enter student password" class="form-input">
-                            <button type="button" class="pwd-toggle" id="btnToggleStudentPwd">👁</button>
+                    <div class="form-control flex-1">
+                        <label class="label"><span class="label-text font-semibold text-gray-300">Password</span></label>
+                        <div class="relative">
+                            <input type="password" id="studentPassword" placeholder="Enter student password"
+                                   class="input input-bordered w-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400"/>
+                            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-gray-400 text-lg" id="btnToggleStudentPwd">👁</button>
                         </div>
                     </div>
                 </div>
-                <div class="option-card" id="optDeviceLock">
-                    <div class="option-header">
-                        <input type="checkbox" id="deviceLock">
-                        <span>🔒 <strong>Enable Device Lock</strong></span>
-                    </div>
-                    <p class="option-desc">When enabled, student can only login from the first device they use after account creation</p>
+
+                <!-- Student Avatar Picker -->
+                <div class="form-control mb-5">
+                    <label class="label"><span class="label-text font-semibold text-gray-300">Choose Avatar</span></label>
+                    <div class="grid grid-cols-8 gap-2" id="createStudentAvatarGrid"></div>
+                    <input type="hidden" id="studentAvatarChoice" value="avatar-1">
                 </div>
-                <div class="option-card active" id="optShowRec">
-                    <div class="option-header">
-                        <input type="checkbox" id="showRecordings" checked>
-                        <span>🎤 <strong>Show Recordings to Student</strong></span>
+
+                <!-- Device Lock Option -->
+                <div class="card bg-white/[0.03] border border-white/[0.08] border-l-4 border-l-yellow-500/50 mb-4 transition-all" id="optDeviceLock">
+                    <div class="card-body p-5">
+                        <label class="flex items-center gap-2.5 cursor-pointer text-base">
+                            <input type="checkbox" id="deviceLock" class="checkbox checkbox-warning"/>
+                            <span>🔒 <strong>Enable Device Lock</strong></span>
+                        </label>
+                        <p class="text-gray-500 text-sm mt-2 pl-8">When enabled, student can only login from the first device they use after account creation</p>
                     </div>
-                    <p class="option-desc">When enabled, student can view their recordings. When disabled, recordings are still created but only visible to teacher.</p>
                 </div>
-                <button class="btn-create-student" id="btnCreateStudent">Create Student</button>
+
+                <!-- Show Recordings Option -->
+                <div class="card bg-emerald-500/[0.05] border border-emerald-500/15 border-l-4 border-l-emerald-500/60 mb-4 transition-all" id="optShowRec">
+                    <div class="card-body p-5">
+                        <label class="flex items-center gap-2.5 cursor-pointer text-base">
+                            <input type="checkbox" id="showRecordings" checked class="checkbox checkbox-success"/>
+                            <span>🎤 <strong>Show Recordings to Student</strong></span>
+                        </label>
+                        <p class="text-gray-500 text-sm mt-2 pl-8">When enabled, student can view their recordings. When disabled, recordings are still created but only visible to teacher.</p>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-indigo-700 border-none font-semibold text-base mt-2 hover:shadow-[0_0_20px_rgba(108,99,255,0.4)] hover:-translate-y-0.5 transition-all" id="btnCreateStudent">Create Student</button>
             </div>
         </div>
 
         <!-- ===== Recordings Tab ===== -->
         <div class="tab-pane" id="recordings">
-            <div class="recordings-container">
-                <div class="recordings-toolbar">
-                    <h3>📼 Meeting Recordings</h3>
-                    <button class="btn-refresh" id="btnRefreshRecordings">Refresh</button>
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="text-xl font-semibold">📼 Meeting Recordings</h3>
+                    <button class="btn btn-sm btn-ghost bg-white/5 border border-white/15" id="btnRefreshRecordings">Refresh</button>
                 </div>
-                <div class="recordings-list" id="recordingsList">
-                    <div class="loading-spinner">Loading recordings…</div>
+                <div id="recordingsList">
+                    <div class="text-center text-gray-500 py-10">Loading recordings…</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Managers Tab (Admin Only) ===== -->
+        <div th:if="${isAdmin}" class="tab-pane" id="managers">
+            <div class="max-w-4xl mx-auto p-7">
+                <!-- Create Manager Form -->
+                <div class="card bg-white/[0.03] border border-white/[0.08] mb-6">
+                    <div class="card-body p-6">
+                        <h3 class="text-xl font-semibold mb-4">👔 Create New Manager</h3>
+                        <div class="form-control mb-4">
+                            <label class="label"><span class="label-text font-semibold text-gray-300">Manager Name</span></label>
+                            <input type="text" id="managerName" placeholder="Enter manager name"
+                                   class="input input-bordered bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400"/>
+                        </div>
+                        <div class="flex gap-5 flex-col md:flex-row mb-4">
+                            <div class="form-control flex-1">
+                                <label class="label"><span class="label-text font-semibold text-gray-300">Username</span></label>
+                                <input type="text" id="managerUsername" placeholder="Enter username"
+                                       class="input input-bordered bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400"/>
+                            </div>
+                            <div class="form-control flex-1">
+                                <label class="label"><span class="label-text font-semibold text-gray-300">Password</span></label>
+                                <div class="relative">
+                                    <input type="password" id="managerPassword" placeholder="Enter password"
+                                           class="input input-bordered w-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-400"/>
+                                    <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-gray-400 text-lg" id="btnToggleManagerPwd">👁</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary bg-gradient-to-r from-amber-500 to-orange-600 border-none font-semibold text-base hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:-translate-y-0.5 transition-all" id="btnCreateManager">Create Manager</button>
+                    </div>
+                </div>
+                <!-- Managers List -->
+                <h3 class="text-xl font-semibold mb-4">👔 All Managers</h3>
+                <div id="managersList">
+                    <div class="text-center text-gray-500 py-10">Loading managers…</div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- ==================== SETTINGS SIDEBAR ==================== -->
-    <div class="settings-overlay" id="settingsOverlay"></div>
-    <div class="settings-sidebar" id="settingsSidebar">
-        <div class="settings-item" id="sChangePassword">🔑 Change Password</div>
-        <div class="settings-item" id="sSchedule">📅 Schedule</div>
-        <div class="settings-item" id="sThemes">🎨 Themes</div>
-        <div class="settings-item" id="sSpeakDetection">🎤 Speak Detection Type</div>
-        <div class="settings-item" id="sZoomStudents">🔍 Zoom Students</div>
-        <div class="settings-item toggle-item">
+    <div class="fixed inset-0 bg-black/50 z-[200] hidden" id="settingsOverlay"></div>
+    <div class="fixed top-0 -right-80 w-[300px] h-screen bg-[#14142e] border-l border-white/[0.08] z-[201] py-5 transition-all duration-300 overflow-y-auto" id="settingsSidebar">
+        <div class="px-6 py-4 cursor-pointer hover:bg-white/5 text-sm flex items-center justify-between" id="sAvatar">🖼️ Change Avatar</div>
+        <div class="px-6 py-4 cursor-pointer hover:bg-white/5 text-sm flex items-center justify-between" id="sChangePassword">🔑 Change Password</div>
+        <div class="px-6 py-4 cursor-pointer hover:bg-white/5 text-sm flex items-center justify-between" id="sSchedule">📅 Schedule</div>
+        <div class="px-6 py-4 cursor-pointer hover:bg-white/5 text-sm flex items-center justify-between" id="sThemes">🎨 Themes</div>
+        <div class="px-6 py-4 cursor-pointer hover:bg-white/5 text-sm flex items-center justify-between" id="sSpeakDetection">🎤 Speak Detection Type</div>
+        <div class="px-6 py-4 cursor-pointer hover:bg-white/5 text-sm flex items-center justify-between" id="sZoomStudents">🔍 Zoom Students</div>
+        <div class="px-6 py-4 cursor-pointer hover:bg-white/5 text-sm flex items-center justify-between">
             <span>🔴 Full Meeting Recording</span>
-            <label class="switch">
-                <input type="checkbox" id="fullRecordingToggle">
-                <span class="slider"></span>
+            <label class="swap">
+                <input type="checkbox" id="fullRecordingToggle" class="toggle toggle-primary toggle-sm"/>
             </label>
         </div>
-        <div class="settings-divider"></div>
-        <div class="settings-item logout-item" id="sLogout">🚪 Logout</div>
+        <div class="border-t border-white/5 my-2.5"></div>
     </div>
 
     <!-- ==================== MODALS ==================== -->
 
     <!-- Change Password Modal -->
-    <div class="modal-overlay" id="passwordModal">
-        <div class="modal-card">
-            <h3>🔑 Change Password</h3>
-            <div class="form-group"><label class="form-label">Current Password</label>
-                <input type="password" id="oldPassword" class="form-input" placeholder="Enter current password"></div>
-            <div class="form-group"><label class="form-label">New Password</label>
-                <input type="password" id="newPassword" class="form-input" placeholder="Enter new password"></div>
-            <div class="form-group"><label class="form-label">Confirm New Password</label>
-                <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm new password"></div>
-            <div class="modal-actions">
-                <button class="btn-cancel" data-close="passwordModal">Cancel</button>
-                <button class="btn-confirm" id="btnChangePassword">Change Password</button>
+    <div class="modal" id="passwordModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10">
+            <h3 class="font-bold text-xl mb-6">🔑 Change Password</h3>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Current Password</span></label>
+                <input type="password" id="oldPassword" placeholder="Enter current password"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">New Password</span></label>
+                <input type="password" id="newPassword" placeholder="Enter new password"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Confirm New Password</span></label>
+                <input type="password" id="confirmPassword" placeholder="Confirm new password"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="passwordModal">Cancel</button>
+                <button class="btn btn-primary" id="btnChangePassword">Change Password</button>
             </div>
         </div>
     </div>
 
     <!-- Edit Student Modal -->
-    <div class="modal-overlay" id="editStudentModal">
-        <div class="modal-card">
-            <h3>✏️ Edit Student</h3>
+    <div class="modal" id="editStudentModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10">
+            <h3 class="font-bold text-xl mb-6">✏️ Edit Student</h3>
             <input type="hidden" id="editStudentId">
-            <div class="form-group"><label class="form-label">Student Name</label>
-                <input type="text" id="editStudentName" class="form-input" placeholder="Student name"></div>
-            <div class="form-group"><label class="form-label">New Password (leave empty to keep current)</label>
-                <input type="password" id="editStudentPassword" class="form-input" placeholder="New password"></div>
-            <div class="option-card"><div class="option-header">
-                <input type="checkbox" id="editDeviceLock"><span>🔒 <strong>Enable Device Lock</strong></span>
-            </div></div>
-            <div class="option-card"><div class="option-header">
-                <input type="checkbox" id="editShowRecordings"><span>🎤 <strong>Show Recordings to Student</strong></span>
-            </div></div>
-            <div class="modal-actions">
-                <button class="btn-cancel" data-close="editStudentModal">Cancel</button>
-                <button class="btn-confirm" id="btnSaveStudent">Save Changes</button>
+            <input type="hidden" id="editStudentAvatar" value="avatar-1">
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Avatar</span></label>
+                <div class="grid grid-cols-8 gap-2" id="editStudentAvatarGrid"></div>
+            </div>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Student Name</span></label>
+                <input type="text" id="editStudentName" placeholder="Student name"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">New Password (leave empty to keep current)</span></label>
+                <input type="password" id="editStudentPassword" placeholder="New password"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <label class="flex items-center gap-2.5 cursor-pointer mb-3 p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+                <input type="checkbox" id="editDeviceLock" class="checkbox checkbox-warning"/>
+                <span>🔒 <strong>Enable Device Lock</strong></span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer mb-3 p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+                <input type="checkbox" id="editShowRecordings" class="checkbox checkbox-success"/>
+                <span>🎤 <strong>Show Recordings to Student</strong></span>
+            </label>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="editStudentModal">Cancel</button>
+                <button class="btn btn-primary" id="btnSaveStudent">Save Changes</button>
             </div>
         </div>
     </div>
 
     <!-- Schedule Modal -->
-    <div class="modal-overlay" id="scheduleModal">
-        <div class="modal-card wide">
-            <h3>📅 Schedule</h3>
-            <div class="form-group"><label class="form-label">Meeting Title</label>
-                <input type="text" id="schedTitle" class="form-input" placeholder="E.g. Maths Class"></div>
-            <div class="form-row">
-                <div class="form-group half"><label class="form-label">Date</label>
-                    <input type="date" id="schedDate" class="form-input"></div>
-                <div class="form-group half"><label class="form-label">Time</label>
-                    <input type="time" id="schedTime" class="form-input"></div>
+    <div class="modal" id="scheduleModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10 max-w-xl">
+            <h3 class="font-bold text-xl mb-6">📅 Schedule</h3>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Meeting Title</span></label>
+                <input type="text" id="schedTitle" placeholder="E.g. Maths Class"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
             </div>
-            <div class="form-group"><label class="form-label">Duration (minutes)</label>
-                <input type="number" id="schedDuration" class="form-input" value="60"></div>
-            <div id="scheduleList" class="schedule-list"></div>
-            <div class="modal-actions">
-                <button class="btn-cancel" data-close="scheduleModal">Close</button>
-                <button class="btn-confirm" id="btnAddSchedule">Add to Schedule</button>
+            <div class="flex gap-5 flex-col md:flex-row mb-4">
+                <div class="form-control flex-1">
+                    <label class="label"><span class="label-text font-semibold text-gray-300">Date</span></label>
+                    <input type="date" id="schedDate" class="input input-bordered bg-white/5 border-white/10 text-white"/>
+                </div>
+                <div class="form-control flex-1">
+                    <label class="label"><span class="label-text font-semibold text-gray-300">Time</span></label>
+                    <input type="time" id="schedTime" class="input input-bordered bg-white/5 border-white/10 text-white"/>
+                </div>
+            </div>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Duration (minutes)</span></label>
+                <input type="number" id="schedDuration" value="60"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <div id="scheduleList" class="mt-4"></div>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="scheduleModal">Close</button>
+                <button class="btn btn-primary" id="btnAddSchedule">Add to Schedule</button>
             </div>
         </div>
     </div>
 
     <!-- Theme Picker Modal -->
-    <div class="modal-overlay" id="themeModal">
-        <div class="modal-card">
-            <h3>🎨 Choose Theme</h3>
-            <div class="theme-grid">
-                <div class="theme-swatch selected" data-theme="dark"><div class="swatch-preview dark-preview"></div><span>Dark</span></div>
-                <div class="theme-swatch" data-theme="midnight"><div class="swatch-preview midnight-preview"></div><span>Midnight</span></div>
-                <div class="theme-swatch" data-theme="ocean"><div class="swatch-preview ocean-preview"></div><span>Ocean</span></div>
-                <div class="theme-swatch" data-theme="forest"><div class="swatch-preview forest-preview"></div><span>Forest</span></div>
+    <div class="modal" id="themeModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10">
+            <h3 class="font-bold text-xl mb-6">🎨 Choose Theme</h3>
+            <div class="grid grid-cols-4 gap-3 mb-4">
+                <div class="theme-swatch text-center cursor-pointer p-2.5 border-2 border-indigo-500 rounded-xl selected" data-theme="dark">
+                    <div class="w-[60px] h-10 rounded-lg bg-gradient-to-br from-[#0d0d1a] to-[#1a1a38] mx-auto mb-2"></div>
+                    <span class="text-xs text-gray-400">Dark</span>
+                </div>
+                <div class="theme-swatch text-center cursor-pointer p-2.5 border-2 border-transparent rounded-xl hover:border-indigo-500" data-theme="midnight">
+                    <div class="w-[60px] h-10 rounded-lg bg-gradient-to-br from-[#0b1120] to-[#1a2a4e] mx-auto mb-2"></div>
+                    <span class="text-xs text-gray-400">Midnight</span>
+                </div>
+                <div class="theme-swatch text-center cursor-pointer p-2.5 border-2 border-transparent rounded-xl hover:border-indigo-500" data-theme="ocean">
+                    <div class="w-[60px] h-10 rounded-lg bg-gradient-to-br from-[#0a1628] to-[#0d2a4a] mx-auto mb-2"></div>
+                    <span class="text-xs text-gray-400">Ocean</span>
+                </div>
+                <div class="theme-swatch text-center cursor-pointer p-2.5 border-2 border-transparent rounded-xl hover:border-indigo-500" data-theme="forest">
+                    <div class="w-[60px] h-10 rounded-lg bg-gradient-to-br from-[#0c1a0e] to-[#1a3a1e] mx-auto mb-2"></div>
+                    <span class="text-xs text-gray-400">Forest</span>
+                </div>
             </div>
-            <div class="modal-actions"><button class="btn-cancel" data-close="themeModal">Close</button></div>
+            <div class="modal-action"><button class="btn btn-ghost" data-close="themeModal">Close</button></div>
         </div>
     </div>
 
     <!-- Speak Detection Type Modal -->
-    <div class="modal-overlay" id="speakDetectionModal">
-        <div class="modal-card">
-            <h3>🎤 Speak Detection Type</h3>
-            <div class="radio-group">
-                <label class="radio-card"><input type="radio" name="speakType" value="auto" checked>
-                    <div><strong>Auto</strong><p>Automatically detect when someone is speaking</p></div></label>
-                <label class="radio-card"><input type="radio" name="speakType" value="push">
-                    <div><strong>Push to Talk</strong><p>Student must hold mic button to speak</p></div></label>
-                <label class="radio-card"><input type="radio" name="speakType" value="continuous">
-                    <div><strong>Continuous</strong><p>Microphone stays open once activated</p></div></label>
+    <div class="modal" id="speakDetectionModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10">
+            <h3 class="font-bold text-xl mb-6">🎤 Speak Detection Type</h3>
+            <div class="flex flex-col gap-2.5 mb-4">
+                <label class="flex items-start gap-3 p-3.5 bg-white/[0.03] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.06] transition">
+                    <input type="radio" name="speakType" value="auto" checked class="radio radio-primary mt-1"/>
+                    <div><strong>Auto</strong><p class="text-gray-500 text-sm mt-0.5">Automatically detect when someone is speaking</p></div>
+                </label>
+                <label class="flex items-start gap-3 p-3.5 bg-white/[0.03] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.06] transition">
+                    <input type="radio" name="speakType" value="push" class="radio radio-primary mt-1"/>
+                    <div><strong>Push to Talk</strong><p class="text-gray-500 text-sm mt-0.5">Student must hold mic button to speak</p></div>
+                </label>
+                <label class="flex items-start gap-3 p-3.5 bg-white/[0.03] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.06] transition">
+                    <input type="radio" name="speakType" value="continuous" class="radio radio-primary mt-1"/>
+                    <div><strong>Continuous</strong><p class="text-gray-500 text-sm mt-0.5">Microphone stays open once activated</p></div>
+                </label>
             </div>
-            <div class="modal-actions">
-                <button class="btn-cancel" data-close="speakDetectionModal">Cancel</button>
-                <button class="btn-confirm" id="btnSaveSpeakDetection">Save</button>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="speakDetectionModal">Cancel</button>
+                <button class="btn btn-primary" id="btnSaveSpeakDetection">Save</button>
             </div>
         </div>
     </div>
 
     <!-- Zoom Students Modal -->
-    <div class="modal-overlay" id="zoomModal">
-        <div class="modal-card">
-            <h3>🔍 Zoom Students</h3>
-            <div class="form-group">
-                <label class="form-label">Student Card Size</label>
-                <input type="range" id="zoomRange" min="80" max="200" value="100" class="zoom-slider">
-                <div class="zoom-value"><span id="zoomValue">100</span>%</div>
+    <div class="modal" id="zoomModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10">
+            <h3 class="font-bold text-xl mb-6">🔍 Zoom Students</h3>
+            <div class="form-control">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Student Card Size</span></label>
+                <input type="range" id="zoomRange" min="80" max="200" value="100" class="range range-primary"/>
+                <div class="text-center text-lg font-semibold text-indigo-400 mt-2"><span id="zoomValue">100</span>%</div>
             </div>
-            <div class="modal-actions">
-                <button class="btn-cancel" data-close="zoomModal">Close</button>
-                <button class="btn-confirm" id="btnApplyZoom">Apply</button>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="zoomModal">Close</button>
+                <button class="btn btn-primary" id="btnApplyZoom">Apply</button>
             </div>
         </div>
     </div>
 
     <!-- Answer Doubt Modal -->
-    <div class="modal-overlay" id="answerDoubtModal">
-        <div class="modal-card wide">
-            <h3>💬 Answer Doubt</h3>
+    <div class="modal" id="answerDoubtModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10 max-w-xl">
+            <h3 class="font-bold text-xl mb-6">💬 Answer Doubt</h3>
             <input type="hidden" id="answerDoubtId">
-            <div class="form-group">
-                <label class="form-label">Student doubt:</label>
-                <audio id="answerDoubtAudio" class="audio-player" controls style="width:100%"></audio>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Student doubt:</span></label>
+                <audio id="answerDoubtAudio" class="w-full h-9 rounded-lg" controls></audio>
             </div>
-            <div class="form-group">
-                <label class="form-label">Text reply (optional)</label>
-                <input type="text" id="answerDoubtNote" class="form-input" placeholder="Type a note for the student…">
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Text reply (optional)</span></label>
+                <input type="text" id="answerDoubtNote" placeholder="Type a note for the student…"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
             </div>
-            <div class="form-group">
-                <label class="form-label">Voice reply (optional)</label>
-                <div style="display:flex;gap:10px;align-items:center">
-                    <button class="btn-confirm" id="btnRecordAnswer" style="flex:none">🎤 Record</button>
-                    <span id="answerRecStatus" style="color:#888;font-size:13px">Not recording</span>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Voice reply (optional)</span></label>
+                <div class="flex gap-2.5 items-center">
+                    <button class="btn btn-primary btn-sm" id="btnRecordAnswer">🎤 Record</button>
+                    <span id="answerRecStatus" class="text-gray-500 text-sm">Not recording</span>
                 </div>
-                <audio id="answerPreview" class="audio-player" controls style="width:100%;margin-top:8px;display:none"></audio>
+                <audio id="answerPreview" class="w-full h-9 rounded-lg mt-2 hidden" controls></audio>
             </div>
-            <div class="modal-actions">
-                <button class="btn-cancel" data-close="answerDoubtModal">Cancel</button>
-                <button class="btn-confirm" id="btnSubmitAnswer">Submit Answer</button>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="answerDoubtModal">Cancel</button>
+                <button class="btn btn-primary" id="btnSubmitAnswer">Submit Answer</button>
             </div>
         </div>
     </div>
 
     <!-- Generic Confirm Modal -->
-    <div class="modal-overlay" id="confirmModal">
-        <div class="modal-card small">
-            <h3 id="confirmTitle">Confirm</h3>
-            <p id="confirmMsg"></p>
-            <div class="modal-actions">
-                <button class="btn-cancel" data-close="confirmModal">Cancel</button>
-                <button class="btn-confirm btn-danger" id="btnConfirmAction">Confirm</button>
+    <div class="modal" id="confirmModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10 max-w-sm">
+            <h3 class="font-bold text-xl mb-4" id="confirmTitle">Confirm</h3>
+            <p class="text-gray-400" id="confirmMsg"></p>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="confirmModal">Cancel</button>
+                <button class="btn btn-error" id="btnConfirmAction">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Manager Modal (Admin Only) -->
+    <div class="modal" id="editManagerModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10">
+            <h3 class="font-bold text-xl mb-6">✏️ Edit Manager</h3>
+            <input type="hidden" id="editManagerId">
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">Manager Name</span></label>
+                <input type="text" id="editManagerName" placeholder="Manager name"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <div class="form-control mb-4">
+                <label class="label"><span class="label-text font-semibold text-gray-300">New Password (leave empty to keep current)</span></label>
+                <input type="password" id="editManagerPassword" placeholder="New password"
+                       class="input input-bordered bg-white/5 border-white/10 text-white"/>
+            </div>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="editManagerModal">Cancel</button>
+                <button class="btn btn-primary" id="btnSaveManager">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Avatar Picker Modal -->
+    <div class="modal" id="avatarModal">
+        <div class="modal-box bg-[#1a1a38] border border-white/10 max-w-lg">
+            <h3 class="font-bold text-xl mb-2">🖼️ Choose Your Avatar</h3>
+            <p class="text-gray-500 text-sm mb-5">Select a modern avatar for your profile</p>
+            <div class="grid grid-cols-4 gap-3 mb-4" id="avatarGrid"></div>
+            <div class="modal-action">
+                <button class="btn btn-ghost" data-close="avatarModal">Cancel</button>
+                <button class="btn btn-primary" id="btnSaveAvatar">Save Avatar</button>
             </div>
         </div>
     </div>
 
     <!-- Toast -->
-    <div class="toast" id="toast"></div>
+    <div class="toast px-7 py-3.5 bg-[#1a1a38] border border-indigo-500/40 rounded-xl text-white text-sm shadow-[0_10px_30px_rgba(0,0,0,0.4)]" id="toast"></div>
 
     <script src="/js/audio-processor.js"></script>
     <script src="/js/app.js"></script>

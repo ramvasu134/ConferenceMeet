@@ -6,6 +6,7 @@ public class CreateStudentRequest {
     private String password;
     private boolean deviceLock;
     private boolean showRecordings = true;
+    private String avatar;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -17,5 +18,6 @@ public class CreateStudentRequest {
     public void setDeviceLock(boolean deviceLock) { this.deviceLock = deviceLock; }
     public boolean isShowRecordings() { return showRecordings; }
     public void setShowRecordings(boolean showRecordings) { this.showRecordings = showRecordings; }
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
 }
-
