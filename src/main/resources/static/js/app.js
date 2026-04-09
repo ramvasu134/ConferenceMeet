@@ -436,11 +436,21 @@ async function toggleBroadcast(){
 
 async function startBroadcast(){
     if(!currentMeeting){ toast('Start a meeting first','error'); return; }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        toast('🚫 Microphone not supported in this browser','error'); return;
+    }
+    if(typeof MediaRecorder === 'undefined'){
+        toast('🚫 Recording not supported. Use Chrome, Edge, or Safari 14.5+','error'); return;
+    }
     try{
-        // Get raw mic with browser-level noise suppression
-        rawBroadcastStream = await navigator.mediaDevices.getUserMedia({
-            audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, sampleRate:48000, channelCount:1 }
-        });
+        // Get raw mic — try full constraints first, fallback to simple for mobile
+        try {
+            rawBroadcastStream = await navigator.mediaDevices.getUserMedia({
+                audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, sampleRate:48000, channelCount:1 }
+            });
+        } catch(e1) {
+            rawBroadcastStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
 
         // Initialise AudioProcessor with full filter chain
         broadcastProcessor = new AudioProcessor();
@@ -533,8 +543,9 @@ function sendBroadcastChunkNow(){
 
 async function uploadBroadcastChunk(blob){
     if(!currentMeeting || blob.size < 100) return; // skip tiny chunks
+    const ext = (blob.type && blob.type.includes('mp4')) ? 'mp4' : 'webm';
     const fd=new FormData();
-    fd.append('audio', blob, `broadcast_${Date.now()}.webm`);
+    fd.append('audio', blob, `broadcast_${Date.now()}.${ext}`);
     fd.append('meetingId', currentMeeting.id);
     const h={}; if(csrfHeader&&csrfToken) h[csrfHeader]=csrfToken;
     try{
@@ -544,8 +555,9 @@ async function uploadBroadcastChunk(blob){
 
 async function uploadMeetingRecording(blob){
     if(!currentMeeting) return;
+    const ext = (blob.type && blob.type.includes('mp4')) ? 'mp4' : 'webm';
     const fd=new FormData();
-    fd.append('audio', blob, `meeting_${currentMeeting.id}_${Date.now()}.webm`);
+    fd.append('audio', blob, `meeting_${currentMeeting.id}_${Date.now()}.${ext}`);
     fd.append('meetingId', currentMeeting.id);
     fd.append('duration', meetingSeconds);
     const h={}; if(csrfHeader&&csrfToken) h[csrfHeader]=csrfToken;

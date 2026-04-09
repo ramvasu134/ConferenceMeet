@@ -50,14 +50,69 @@ let audioQueue     = [];
 let isPlaying      = false;
 let doubtStartTime = 0;
 let doubtClipCounter = 0;
+let audioUnlocked  = false;  // Mobile audio unlock state
+let silentAudioCtx = null;   // Primed AudioContext for mobile playback
 
 // ===== BOOT =====
 document.addEventListener('DOMContentLoaded', () => {
     wireEvents();
+    checkAudioUnlock();
     startPolling();
     loadDoubts();
     initStudentAvatar();
 });
+
+// ===== MOBILE AUDIO UNLOCK =====
+// iOS/Safari/mobile browsers block audio playback until a user gesture occurs.
+// This shows an overlay on first load to get a tap, then primes the AudioContext.
+function checkAudioUnlock() {
+    // Detect if we likely need an unlock (iOS Safari, or any mobile)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const overlay = document.getElementById('audioUnlockOverlay');
+
+    if ((isMobile || isSafari) && overlay) {
+        overlay.classList.remove('hidden');
+        const unlockBtn = document.getElementById('btnAudioUnlock');
+        if (unlockBtn) {
+            unlockBtn.addEventListener('click', () => {
+                unlockAudio();
+                overlay.classList.add('hidden');
+            }, { once: true });
+        }
+        // Also unlock on any touch anywhere
+        document.addEventListener('touchstart', function handler() {
+            unlockAudio();
+            if (overlay) overlay.classList.add('hidden');
+            document.removeEventListener('touchstart', handler);
+        }, { once: true });
+    } else {
+        audioUnlocked = true;
+    }
+}
+
+function unlockAudio() {
+    // Create a silent AudioContext and play a tiny buffer to "prime" audio playback
+    try {
+        silentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const buffer = silentAudioCtx.createBuffer(1, 1, 22050);
+        const source = silentAudioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(silentAudioCtx.destination);
+        source.start(0);
+        if (silentAudioCtx.state === 'suspended') silentAudioCtx.resume();
+    } catch(e) { console.warn('Audio unlock failed:', e); }
+
+    // Also play a silent HTML5 audio element to unlock that pathway
+    try {
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+        silentAudio.volume = 0.01;
+        silentAudio.play().then(() => silentAudio.pause()).catch(() => {});
+    } catch(e) {}
+
+    audioUnlocked = true;
+    toast('🔊 Audio enabled!', 'success');
+}
 
 // ===== UTILS =====
 const $ = id => document.getElementById(id);
@@ -139,18 +194,41 @@ async function pollBroadcast() {
 // ===== PLAY BROADCAST CHUNKS =====
 async function playNextChunk() {
     if (isPlaying || audioQueue.length === 0 || !isSpeakerOn) return;
+    if (!audioUnlocked) {
+        // Show unlock overlay if not yet unlocked
+        const overlay = document.getElementById('audioUnlockOverlay');
+        if (overlay) overlay.classList.remove('hidden');
+        return;
+    }
     isPlaying = true;
     const chunkId = audioQueue.shift();
     try {
         const audio = new Audio(`/api/student/broadcast/chunk/${chunkId}`);
         audio.volume = isSpeakerOn ? 1.0 : 0;
+        audio.setAttribute('playsinline', '');  // iOS requires playsinline
+        audio.setAttribute('webkit-playsinline', '');
         audio.onplay = () => {
             $('broadcastLabel').textContent = '🔊 Receiving teacher audio…';
             $('broadcastLabel').className = 'mt-2.5 text-sm text-emerald-400';
         };
         audio.onended = () => { isPlaying = false; playNextChunk(); };
-        audio.onerror = () => { isPlaying = false; playNextChunk(); };
-        await audio.play();
+        audio.onerror = (e) => {
+            console.warn('Chunk playback error:', e);
+            isPlaying = false;
+            playNextChunk();
+        };
+        // play() returns a Promise; handle autoplay rejection on mobile
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(err => {
+                console.warn('Autoplay blocked:', err.message);
+                isPlaying = false;
+                // Re-queue the chunk and show unlock overlay
+                audioQueue.unshift(chunkId);
+                const overlay = document.getElementById('audioUnlockOverlay');
+                if (overlay && !audioUnlocked) overlay.classList.remove('hidden');
+            });
+        }
     } catch (e) { console.error('Playback error:', e); isPlaying = false; playNextChunk(); }
 }
 
@@ -202,11 +280,26 @@ async function toggleDoubtRecording() {
 }
 
 async function startDoubtRecording() {
+    // Check if browser supports recording at all
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast('🚫 Microphone not supported on this browser', 'error');
+        return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+        toast('🚫 Recording not supported on this browser. Try Chrome or Safari 14.5+', 'error');
+        return;
+    }
     try {
-        rawMicStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true,
-                     sampleRate: 48000, channelCount: 1 }
-        });
+        // Try full constraints first, fall back to simpler constraints for mobile
+        try {
+            rawMicStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+                         sampleRate: 48000, channelCount: 1 }
+            });
+        } catch(e1) {
+            // Fallback: simpler constraints (works on more mobile browsers)
+            rawMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
 
         doubtProcessor = new AudioProcessor();
         await doubtProcessor.init(rawMicStream);
@@ -261,8 +354,10 @@ function sendDoubt() {
 
 async function uploadDoubtClip(blob) {
     const durationSec = Math.round((Date.now() - doubtStartTime) / 1000);
+    // Determine file extension based on actual blob type (Safari uses mp4, Chrome uses webm)
+    const ext = (blob.type && blob.type.includes('mp4')) ? 'mp4' : 'webm';
     const fd = new FormData();
-    fd.append('audio', blob, `doubt_${Date.now()}.webm`);
+    fd.append('audio', blob, `doubt_${Date.now()}.${ext}`);
     if (currentMeetingId) fd.append('meetingId', currentMeetingId);
     fd.append('duration', durationSec);
 

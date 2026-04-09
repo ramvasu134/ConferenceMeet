@@ -2,7 +2,12 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en" data-theme="night">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a15">
+    <meta name="format-detection" content="telephone=no">
     <title>mtng - Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,6 +30,19 @@
         /* Tab pane visibility — explicit rules so we don't depend on Tailwind CDN */
         .tab-pane { display: none !important; }
         .tab-pane.active-tab { display: block !important; }
+        /* Mobile safe areas */
+        body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); -webkit-text-size-adjust: 100%; }
+        html { height: -webkit-fill-available; }
+        /* Touch-friendly */
+        .btn, button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .btn-circle { min-width: 48px; min-height: 48px; }
+        input { font-size: 16px; } /* Prevent iOS zoom on focus */
+        /* Mobile tab nav scroll */
+        @media (max-width: 640px) {
+            .tab { font-size: 12px !important; padding: 10px 6px !important; white-space: nowrap; }
+            .navbar { padding: 8px 10px !important; gap: 6px !important; }
+            .navbar-start .text-2xl { font-size: 1.1rem !important; }
+        }
         /* Theme overrides */
         body.theme-midnight{--b1:#0b1120;--b2:#070d18}
         body.theme-ocean{--b1:#0a1628;--b2:#061020}

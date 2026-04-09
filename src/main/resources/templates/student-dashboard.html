@@ -2,7 +2,12 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en" data-theme="night">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0d0d1a">
+    <meta name="format-detection" content="telephone=no">
     <title>mtng - Student Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,9 +26,33 @@
         /* Tab pane visibility */
         .tab-pane { display: none !important; }
         .tab-pane.active-tab { display: block !important; }
+        /* Mobile safe areas */
+        body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); -webkit-text-size-adjust: 100%; }
+        html { height: -webkit-fill-available; }
+        /* Touch-friendly targets */
+        .btn, button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .btn-circle { min-width: 48px; min-height: 48px; }
+        /* iOS audio unlock overlay */
+        .audio-unlock-overlay { position:fixed;inset:0;z-index:9999;background:rgba(13,13,26,0.95);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px; }
+        .audio-unlock-overlay.hidden { display:none; }
+        .audio-unlock-btn { padding:18px 40px;font-size:18px;font-weight:700;border:none;border-radius:16px;background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;cursor:pointer;box-shadow:0 0 30px rgba(46,204,113,0.4); }
+        /* Prevent text size adjust on rotate */
+        @media (max-width: 640px) {
+            .tab { font-size: 13px !important; padding: 10px 8px !important; }
+            .navbar { padding: 8px 12px !important; }
+        }
     </style>
 </head>
 <body class="bg-[#0d0d1a] text-gray-200 min-h-screen overflow-x-hidden font-body">
+    <!-- Audio Unlock Overlay (required for iOS/mobile autoplay) -->
+    <div class="audio-unlock-overlay hidden" id="audioUnlockOverlay">
+        <div style="text-align:center">
+            <div style="font-size:64px;margin-bottom:12px">🔊</div>
+            <h2 style="font-size:22px;font-weight:700;color:#fff;margin-bottom:8px">Tap to Enable Audio</h2>
+            <p style="color:#888;font-size:14px;margin-bottom:20px">Mobile browsers require a tap to play audio</p>
+            <button class="audio-unlock-btn" id="btnAudioUnlock">🎧 Enable Audio</button>
+        </div>
+    </div>
     <input type="hidden" id="studentId"   th:value="${studentId}">
     <input type="hidden" id="studentName" th:value="${studentName}">
     <input type="hidden" id="teacherName" th:value="${teacherName}">
@@ -81,7 +110,7 @@
 
         <!-- ============ LISTEN TAB ============ -->
         <div class="tab-pane active-tab" id="listen-tab">
-            <div class="flex flex-col" style="height:calc(100vh - 120px)">
+            <div class="flex flex-col" style="height:calc(100vh - 120px);height:calc(100dvh - 120px)">
                 <!-- Status banner -->
                 <div class="mx-4 mt-4 p-5 rounded-xl border bg-gradient-to-r from-emerald-900/30 to-emerald-900/10 border-emerald-500/20 transition-all" id="listenBanner">
                     <span class="text-emerald-400/70 text-sm" id="bannerText">⏳ Waiting for teacher to start a meeting…</span>
@@ -110,17 +139,17 @@
                 </div>
 
                 <!-- Controls bar -->
-                <div class="flex items-center justify-center gap-5 p-5 bg-black/30 border-t border-white/5">
+                <div class="flex items-center justify-center gap-5 p-5 bg-black/30 border-t border-white/5" style="padding-bottom:calc(20px + env(safe-area-inset-bottom))">
                     <!-- Speaker Toggle -->
-                    <button class="btn btn-circle btn-ghost bg-white/5 border border-white/15 text-xl" id="btnSpeakerToggle" title="Mute/Unmute playback">
+                    <button class="btn btn-circle btn-ghost bg-white/5 border border-white/15 text-xl min-w-[48px] min-h-[48px]" id="btnSpeakerToggle" title="Mute/Unmute playback">
                         <span class="ctrl-icon pointer-events-none">🔊</span>
                     </button>
                     <!-- Mic (Ask Doubt) -->
-                    <button class="btn btn-circle btn-lg bg-gradient-to-br from-red-900 to-red-600 border-none text-2xl shadow-[0_0_20px_rgba(192,57,43,0.4)] hover:scale-105 hover:shadow-[0_0_30px_rgba(192,57,43,0.6)] mic-btn" id="btnAskDoubt" title="Hold or click to ask a doubt">
+                    <button class="btn btn-circle btn-lg bg-gradient-to-br from-red-900 to-red-600 border-none text-2xl shadow-[0_0_20px_rgba(192,57,43,0.4)] hover:scale-105 hover:shadow-[0_0_30px_rgba(192,57,43,0.6)] mic-btn min-w-[64px] min-h-[64px]" id="btnAskDoubt" title="Hold or click to ask a doubt">
                         <span class="ctrl-icon pointer-events-none">🎤</span>
                     </button>
                     <!-- Send Doubt -->
-                    <button class="btn btn-circle btn-ghost bg-emerald-500/20 border border-emerald-500/30 text-xl hover:bg-emerald-500/40" id="btnSendDoubt" title="Stop & send doubt recording">
+                    <button class="btn btn-circle btn-ghost bg-emerald-500/20 border border-emerald-500/30 text-xl hover:bg-emerald-500/40 min-w-[48px] min-h-[48px]" id="btnSendDoubt" title="Stop & send doubt recording">
                         <span class="ctrl-icon pointer-events-none">📤</span>
                     </button>
                 </div>

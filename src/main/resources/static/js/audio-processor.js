@@ -36,6 +36,11 @@ class AudioProcessor {
             sampleRate: 48000
         });
 
+        // iOS Safari requires resuming AudioContext after user gesture
+        if (this.audioCtx.state === 'suspended') {
+            await this.audioCtx.resume();
+        }
+
         this.sourceNode = this.audioCtx.createMediaStreamSource(rawStream);
 
         // ---- 1. AGGRESSIVE HIGH-PASS — kill everything below 100 Hz ----
@@ -211,11 +216,33 @@ class AudioProcessor {
         this.chunks = [];
         this.isRecording = true;
 
+        // Cross-browser codec selection: try webm/opus (Chrome/Firefox), then mp4 (Safari), then default
+        const codecs = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/mp4;codecs=mp4a.40.2',
+            'audio/mp4',
+            'audio/ogg;codecs=opus',
+            'audio/ogg',
+            ''
+        ];
         let opts;
-        try { opts = { mimeType: 'audio/webm;codecs=opus' }; new MediaRecorder(this.destinationStream.stream, opts); }
-        catch { opts = undefined; }
+        for (const codec of codecs) {
+            if (!codec) { opts = undefined; break; }
+            try {
+                if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(codec)) {
+                    opts = { mimeType: codec };
+                    break;
+                }
+            } catch(e) { /* skip */ }
+        }
+        if (opts) {
+            try { new MediaRecorder(this.destinationStream.stream, opts); }
+            catch(e) { opts = undefined; }
+        }
 
-        this.mediaRecorder = new MediaRecorder(this.destinationStream.stream, opts);
+        this.mediaRecorder = new MediaRecorder(this.destinationStream.stream, opts || undefined);
+        this._recordingMimeType = this.mediaRecorder.mimeType || 'audio/webm';
 
         this.mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0) {
@@ -225,7 +252,7 @@ class AudioProcessor {
         };
 
         this.mediaRecorder.onstop = () => {
-            const blob = new Blob(this.chunks, { type: 'audio/webm' });
+            const blob = new Blob(this.chunks, { type: this._recordingMimeType || 'audio/webm' });
             if (this.onStop) this.onStop(blob);
             this.isRecording = false;
         };

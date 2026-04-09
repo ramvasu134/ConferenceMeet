@@ -227,16 +227,61 @@ input:checked+.slider::before{transform:translateX(22px)}
 .empty-state .icon{font-size:48px;margin-bottom:16px}
 
 /* ===== RESPONSIVE ===== */
+/* Prevent iOS zoom on input focus (must be >= 16px) */
+input, select, textarea { font-size: 16px; }
+/* Touch-friendly defaults */
+button, .btn, .action-btn, .timer-btn, .control-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+/* Safe area padding */
+html { height: -webkit-fill-available; }
+body { -webkit-text-size-adjust: 100%; }
+
 @media(max-width:768px){
-    .top-bar{flex-wrap:wrap;gap:10px}
+    .top-bar{flex-wrap:wrap;gap:10px;padding:8px 12px}
     .meeting-timer{order:3;width:100%;justify-content:center}
-    .tab-btn{font-size:13px;padding:12px 14px}
-    .student-row{flex-direction:column;gap:12px;text-align:center}
-    .student-actions{justify-content:center}
+    .tab-btn{font-size:13px;padding:12px 10px}
+    .tab-nav{-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}
+    .tab-btn{scroll-snap-align:start;min-width:max-content}
+    .student-row{flex-direction:column;gap:12px;text-align:center;padding:14px 12px}
+    .student-actions{justify-content:center;gap:6px}
+    .action-btn{padding:10px 14px;font-size:13px;min-height:44px}
     .form-row{flex-direction:column;gap:0}
     .chat-msg{max-width:85%}
-    .settings-sidebar{width:260px}
+    .settings-sidebar{width:280px;max-width:85vw}
     .theme-grid{grid-template-columns:repeat(2,1fr)}
+    .modal-card{padding:20px 16px;max-width:94%;border-radius:14px}
+    .modal-card h3{font-size:18px;margin-bottom:16px}
+    .create-student-form{padding:20px 12px}
+    .control-btn{min-width:48px;min-height:48px}
+    .mic-btn{min-width:64px;min-height:64px}
+    audio.audio-player,audio{max-width:100%;height:40px}
+    .meeting-controls-bar{gap:12px;padding:14px 12px;flex-wrap:wrap}
+    .recordings-container{padding:12px}
+    .students-toolbar{flex-wrap:wrap;gap:8px;padding:10px 12px}
+    .students-toolbar input{width:100%}
+    .teacher-name{font-size:18px}
+    .participant-count{padding:6px 12px;font-size:14px}
+    .doubts-panel-list{max-height:250px}
+    .speaking-strip{padding:4px 12px;gap:6px}
+    /* Bottom controls bar safe-area for phones with home indicator */
+    .meeting-controls-bar{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+}
+
+@media(max-width:480px){
+    .top-bar{padding:6px 8px}
+    .teacher-name{font-size:15px}
+    #timerDisplay{font-size:14px;min-width:60px}
+    .tab-btn{font-size:12px;padding:10px 8px}
+    .btn-start-meeting{padding:8px 14px;font-size:14px}
+    .btn-settings{width:40px;height:40px;font-size:18px}
+    .chat-input-area{padding:10px 12px;gap:8px}
+    .chat-input-area input{padding:10px 12px;font-size:14px}
+    .student-info .name{font-size:15px}
+    .action-btn{padding:8px 10px;font-size:12px}
+    .form-input{padding:12px 14px}
+    .form-label{font-size:13px}
 }
 
 /* ===== SCROLLBAR ===== */
